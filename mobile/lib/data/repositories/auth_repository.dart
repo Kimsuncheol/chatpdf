@@ -1,0 +1,72 @@
+import '../../core/network/api_client.dart';
+import '../models/user.dart';
+
+class AuthRepository {
+  AuthRepository(this._api);
+  final ApiClient _api;
+
+  Future<String> authenticate(
+    String email,
+    String password, {
+    bool create = false,
+  }) async {
+    try {
+      final json = await _api.post(create ? 'auth/register' : 'auth/login', {
+        'email': email,
+        'password': password,
+      }, authenticated: false);
+      if (json is! Map<String, dynamic> ||
+          json['access_token'] is! String ||
+          (json['access_token'] as String).trim().isEmpty) {
+        throw const ApiException(
+          'The server returned an invalid sign-in response. Please try again.',
+        );
+      }
+      return json['access_token'] as String;
+    } on ApiException catch (error) {
+      // Map status codes to safe, action-specific messages. Never show raw
+      // server errors, which can expose diagnostics or untrusted content.
+      final message = switch (error.statusCode) {
+        401 when !create => 'The email or password is incorrect.',
+        403 => 'Sign-in is not allowed for this account. Contact support.',
+        409 when create =>
+          'An account already uses this email. Sign in or reset your password.',
+        400 || 422 =>
+          create
+              ? 'The account details were rejected. Check your email and password.'
+              : 'Check your email and password and try again.',
+        _ => error.message,
+      };
+      throw ApiException(message, statusCode: error.statusCode);
+    }
+  }
+
+  Future<User> currentUser() async {
+    final json = await _api.get('auth/me');
+    if (json is! Map<String, dynamic> ||
+        json['id'] is! String ||
+        (json['id'] as String).isEmpty ||
+        json['email'] is! String ||
+        (json['email'] as String).isEmpty ||
+        (json['subscription_tier'] != null &&
+            json['subscription_tier'] is! String)) {
+      throw const ApiException(
+        'The server returned an invalid account response. Please try again.',
+      );
+    }
+    return User.fromJson(json);
+  }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      await _api.post('auth/reset-password', {
+        'email': email,
+      }, authenticated: false);
+    } on ApiException catch (error) {
+      throw ApiException(switch (error.statusCode) {
+        400 || 422 => 'Enter a valid email address and try again.',
+        _ => error.message,
+      }, statusCode: error.statusCode);
+    }
+  }
+}
