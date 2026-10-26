@@ -114,10 +114,11 @@ Password reset requests display the same confirmation for all successful respons
 Flask must return a generic 2xx response whether or not an account exists. The app
 only requests reset instructions; Flask's email/reset-link flow completes the reset.
 
-## Proposed Flask contract
+## Flask contract
 
-No backend was present. These are client contracts to implement/align with Flask,
-not claims that endpoints already exist. Paths are relative to `API_BASE_URL`.
+The separate [Flask backend](../backend/README.md) implements login, `auth/me`,
+document list/retrieve/delete, upload, job status, cancellation, and retry. Registration, password-reset delivery,
+conversation, and chat endpoints remain contracts for future backend work. Paths are relative to `API_BASE_URL`.
 IDs are strings, page numbers are 1-based, and responses are JSON except 204s.
 
 | Method/path | Body | Response |
@@ -126,15 +127,23 @@ IDs are strings, page numbers are 1-based, and responses are JSON except 204s.
 | POST `auth/register` | `{email, password}` | `{access_token}` (auto-login contract) |
 | POST `auth/reset-password` | `{email}` | 2xx; generic response to avoid account enumeration |
 | GET `auth/me` | — | `{id, email, subscription_tier}` |
-| GET `documents` | — | `[{id, name, status, processed_pages, total_pages}]` |
+| GET `documents?limit=20&q=…&cursor=…` | — | `{items: [{id, name, uploaded_at, status, processed_pages, total_pages}], next_cursor}` |
 | GET `documents/:id` | — | same document object |
+| GET `uploads/limits` | — | `{max_bytes, max_pages}` |
+| POST `documents/upload` | raw PDF stream; `X-Filename`, `Idempotency-Key` headers | `{document, job}`; 202 (or 200 on replay) |
+| GET `uploads/:key` | — | accepted upload receipt or 404 |
+| GET `documents/:id/status` | — | `{document, job}` |
+| POST `documents/:id/cancel` | `{}` | updated receipt, with checkpoints preserved |
+| POST `documents/:id/retry` | `{}` | queued receipt resuming saved progress |
+| DELETE `documents/:id` | — | 204 after files/indexes and relational content are removed; 503 if cleanup needs retry |
 | GET `conversations` | — | `[{id, document_id, title}]` |
 | GET `documents/:id/conversations/:conversationId/messages` | — | `[{role, content, citations}]` |
 | POST `documents/:id/chat` | `{question, conversation_id?}` | `{conversation_id, message: {role, content, citations}}` |
 
 Citations have `{page_number, element_type}`. Document status `ready` enables chat;
 other statuses open progress. Processing progress is fetched from the backend and
-can be refreshed manually. The server must save resumable page-batch progress.
+is polled automatically while jobs are active, with manual refresh and retry. The
+server persists a page checkpoint and extracted elements atomically after each batch.
 
 The access token is stored using `flutter_secure_storage` (iOS Keychain / Android
 secure storage), attached only to authenticated API requests, and validated through
@@ -152,6 +161,26 @@ selected PDF, preserve page/element metadata, cite supporting pages, and state w
 evidence is insufficient. Flutter displays returned answers and citations; it cannot
 enforce answer grounding or authorization.
 
+## Document library
+
+Home has a persistent Upload PDF action, a debounced server-side title search,
+upload dates formatted in the device locale, processing status, and page counts
+when available. It handles initial loading/empty/error states, pull-to-refresh,
+load-more pagination, and retry without discarding an already loaded page. Query
+changes reset the cursor; stale search responses cannot overwrite new results.
+
+Ready documents open document chat; queued/processing/failed documents open their
+status screen. Deletion requires a confirmation describing permanent PDF, content,
+index, and conversation cleanup. The affected card shows progress and disables
+opening while deleting. Items are removed only after success (or an already absent
+404). Failure retains the item and shows a retry message; refreshed `deleting`
+metadata disables opening and offers Retry deletion. A completed deletion cannot
+be resurrected by an older in-flight list response.
+
+The API list is now a paginated envelope, replacing the initial bare-array
+placeholder contract. Search spans all the user's documents on the server, not just
+loaded pages. The client never sends an owner ID or decides document authorization.
+
 ## Implemented scope
 
 All eight screens are reachable through navigation with auth guards. Authentication
@@ -159,11 +188,42 @@ forms, secure session restoration, document list/detail, conversation history, a
 chat requests are wired to the contract above, including loading, empty, error,
 and retry states. There is no fake login, document data, or generated answer.
 
-File selection/multipart transfer, automatic processing polling, token refresh,
-purchases, reset-link completion, and a PDF page viewer are not implemented in this
-foundation. Upload and purchase UI clearly identify these pending integrations.
-Citation chips display page and element metadata but do not open a PDF yet.
-Backend processing, LangChain/Docling/Ollama, and HTTPS hosting remain separate work.
+Token refresh, purchases, reset-link completion, and a PDF page viewer remain
+unimplemented. Citation chips display page/type metadata but do not open a PDF yet.
+Docling extraction is implemented on the backend; LangChain/Ollama answer generation,
+semantic vector indexing, and HTTPS hosting remain separate work.
+
+## Upload and processing
+
+`file_picker` selects one PDF. Its `readAsByteStream()` feeds an abortable request
+through the existing HTTPS API client; neither `readAsBytes()` nor multipart buffering
+is used. Size and extension are checked locally using server-provided limits. Flask
+validates actual content, encryption, page count, and byte limits. Only safe error
+codes are mapped to user messages; arbitrary server diagnostics are not displayed.
+
+Upload progress counts bytes consumed by the transport, not server acknowledgements.
+At 100%, the screen shows server validation until an acceptance response arrives.
+An upload can be stopped; the server may already have accepted it. The controller
+retains an idempotency key for that selection and checks its receipt before retrying,
+preventing duplicate accepted documents after a lost response. Selecting another file
+creates a new key. Partial byte transfers restart from byte zero; this is not a
+multipart/resumable-byte upload protocol. If the app restarts, accepted documents are
+recoverable through the library even though a pending local selection is not saved.
+
+The status route includes the document ID, so reopening it restores server progress.
+It shows queued, extracting, saving/completed, failed, or cancelled stages and page
+counts. Polling uses a two-second interval with backoff on connection errors, pauses
+when the app backgrounds, stops for terminal jobs or missing resources, and ignores
+old status responses after a cancellation/retry. Cancelling processing keeps the PDF
+and completed batches; Resume/Retry queues the next unfinished batch. Validation
+failures require a new selection. A non-retryable processing failure also offers a
+new PDF. Deleting a document remains a separate confirmed operation.
+
+Run the backend's `ingestion-worker` alongside Flask. The default `native` Docling
+pipeline reads embedded text without layout/table detection or OCR; an image-only
+PDF fails clearly with `no_readable_content` instead of pretending to be ready.
+Configure `DOCLING_PIPELINE=standard` and provision the model artifacts/OCR runtime
+for layout, tables, or scanned PDFs. All pipeline configuration stays on the server.
 
 Android has release Internet permission, cleartext traffic disabled, and backup
 disabled for credential storage. iOS has Keychain entitlements. Device signing and
@@ -178,3 +238,16 @@ flutter test
 ```
 
 Tests use in-memory tokens and mocked HTTP responses, not production credentials.
+
+## Native build verification
+
+Android debug compilation and iOS simulator compilation were verified with a public
+placeholder HTTPS API URL; no deployment or real credentials were used. The iOS
+build succeeded from a temporary local source copy outside the synced Desktop
+folder. The Desktop build encountered Finder metadata on generated framework bundles.
+If codesign reports `resource fork, Finder information, or similar detritus not
+allowed`, inspect generated bundle attributes as described in
+[Apple QA1940](https://developer.apple.com/library/archive/qa/qa1940/_index.html).
+A local non-synced checkout avoided this observed build-artifact issue. No app
+signing settings were changed. File selection on a physical device and live HTTPS
+hosting still need deployment/device verification.

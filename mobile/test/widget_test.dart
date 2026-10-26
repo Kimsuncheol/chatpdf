@@ -22,9 +22,9 @@ void main() {
             200,
           );
         }
-        if (request.url.path.endsWith('/documents/doc-1')) {
+        if (request.url.path.endsWith('/documents/doc-1/status')) {
           return http.Response(
-            '{"id":"doc-1","name":"Example PDF","status":"processing","processed_pages":5,"total_pages":20}',
+            '{"document":{"id":"doc-1","name":"Example PDF","status":"processing","processed_pages":5,"total_pages":20},"job":null}',
             200,
           );
         }
@@ -40,7 +40,7 @@ void main() {
             200,
           );
         }
-        return http.Response('[]', 200);
+        return http.Response('{"items":[],"next_cursor":null}', 200);
       });
       await h.session.restore();
       await tester.pumpWidget(
@@ -76,7 +76,7 @@ void main() {
       );
       await tester.tap(find.text('Upload').last);
       await tester.pumpAndSettle();
-      expect(find.text('Choose PDF — coming next'), findsOneWidget);
+      expect(find.text('Choose PDF'), findsOneWidget);
       router.go(AppRoutes.processing('doc-1'));
       await tester.pumpAndSettle();
       expect(find.text('5 of 20 pages processed'), findsOneWidget);

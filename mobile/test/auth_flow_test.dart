@@ -151,7 +151,7 @@ void main() {
         }
         return request.url.path.endsWith('/me')
             ? http.Response(account, 200)
-            : http.Response('[]', 200);
+            : http.Response('{"items":[],"next_cursor":null}', 200);
       });
       await mount(tester, h);
       await tester.enterText(field('auth-email'), 'reader@example.com');
@@ -182,7 +182,9 @@ void main() {
       var expired = false;
       final h = Harness((request) async {
         if (request.url.path.endsWith('/me')) return me.future;
-        return expired ? http.Response('', 401) : http.Response('[]', 200);
+        return expired
+            ? http.Response('', 401)
+            : http.Response('{"items":[],"next_cursor":null}', 200);
       }, token: 'saved');
       final restoring = h.session.restore();
       await tester.pumpWidget(
