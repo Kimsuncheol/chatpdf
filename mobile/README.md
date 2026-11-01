@@ -191,7 +191,8 @@ and retry states. There is no fake login, document data, or generated answer.
 Token refresh, purchases, reset-link completion, and a PDF page viewer remain
 unimplemented. Citation chips display page/type metadata but do not open a PDF yet.
 Docling extraction is implemented on the backend; LangChain/Ollama answer generation,
-semantic vector indexing, and HTTPS hosting remain separate work.
+and HTTPS hosting remain separate work. Persistent vector retrieval is implemented
+on the backend; see [the pipeline guide](../backend/PIPELINE.md).
 
 ## Upload and processing
 
@@ -219,11 +220,12 @@ and completed batches; Resume/Retry queues the next unfinished batch. Validation
 failures require a new selection. A non-retryable processing failure also offers a
 new PDF. Deleting a document remains a separate confirmed operation.
 
-Run the backend's `ingestion-worker` alongside Flask. The default `native` Docling
-pipeline reads embedded text without layout/table detection or OCR; an image-only
-PDF fails clearly with `no_readable_content` instead of pretending to be ready.
-Configure `DOCLING_PIPELINE=standard` and provision the model artifacts/OCR runtime
-for layout, tables, or scanned PDFs. All pipeline configuration stays on the server.
+Run the backend's `ingestion-worker` alongside Flask. The default `standard` Docling
+pipeline extracts layout and tables. Configure the server OCR engine/languages for
+scanned PDFs and supply the embedding provider settings. The explicit native mode
+reports missing structure/OCR and sparse image-only pages. Figures remain source
+references/captions; chart meaning is not inferred. All pipeline configuration
+stays on the server.
 
 Android has release Internet permission, cleartext traffic disabled, and backup
 disabled for credential storage. iOS has Keychain entitlements. Device signing and

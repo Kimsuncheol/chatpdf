@@ -1,5 +1,3 @@
-import sqlite3
-
 from flask import Blueprint, current_app, g, jsonify, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
@@ -96,10 +94,17 @@ def delete_document(document_id):
             db.execute("UPDATE processing_jobs SET status = 'cancelled' WHERE document_id = ?", (document_id,))
         current_app.extensions['document_storage'].delete(document_id)
         with transaction() as db:
+            row = db.execute('SELECT vector_store_factory,index_profile FROM documents WHERE id=? AND owner_id=?',
+                             (document_id, g.user['id'])).fetchone()
+            if row and row['vector_store_factory']:
+                from .pipeline.config import import_factory
+                store = import_factory(row['vector_store_factory'])(dict(current_app.config),
+                    owner_id=g.user['id'], document_id=document_id, embedding=None, profile=row['index_profile'])
+                store.delete_document(db)
             db.execute('DELETE FROM documents WHERE id = ? AND owner_id = ?', (document_id, g.user['id']))
             # SQLite foreign keys cascade chunks, embeddings, conversations,
             # messages, and processing jobs. All file/index artifacts are gone.
-    except (OSError, sqlite3.Error):
-        current_app.logger.exception('Document cleanup failed for %s', document_id)
+    except Exception as error:
+        current_app.logger.error('Document cleanup failed for %s: %s', document_id, type(error).__name__)
         raise ApiError(503, 'cleanup_pending', 'Deletion is incomplete. Retry deleting this document.') from None
     return '', 204

@@ -87,7 +87,7 @@ def initialize():
     path.chmod(0o600)
     db.execute('PRAGMA journal_mode = WAL')
     version = db.execute('PRAGMA user_version').fetchone()[0]
-    if version not in (0, 1, 2):
+    if version not in (0, 1, 2, 3):
         raise RuntimeError('Unsupported database schema version')
     db.executescript('BEGIN IMMEDIATE;\n' + SCHEMA)
     columns = {row['name'] for row in db.execute('PRAGMA table_info(processing_jobs)')}
@@ -118,7 +118,25 @@ def initialize():
     for statement in additional_schema.split(';'):
         if statement.strip():
             db.execute(statement)
-    db.execute('PRAGMA user_version = 2')
+    for table, definitions in {
+        'processing_jobs': {'pipeline_fingerprint': 'TEXT', 'parser_context_json': "TEXT NOT NULL DEFAULT '{}'"},
+        'documents': {'index_profile': 'TEXT', 'vector_store_factory': 'TEXT'},
+        'chunks': {'metadata_json': "TEXT NOT NULL DEFAULT '{}'"},
+        'embeddings': {'profile': 'TEXT', 'dimensions': 'INTEGER'},
+        'document_pages': {'quality_json': "TEXT NOT NULL DEFAULT '{}'"},
+    }.items():
+        existing = {row['name'] for row in db.execute(f'PRAGMA table_info({table})')}
+        for name, definition in definitions.items():
+            if name not in existing:
+                db.execute(f'ALTER TABLE {table} ADD COLUMN {name} {definition}')
+    db.execute("CREATE TABLE IF NOT EXISTS extracted_elements (id TEXT PRIMARY KEY, "
+        "document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE, page_number INTEGER NOT NULL, "
+        "position INTEGER NOT NULL, element_type TEXT NOT NULL, content TEXT NOT NULL, metadata_json TEXT NOT NULL)")
+    db.execute('CREATE INDEX IF NOT EXISTS elements_document_page ON extracted_elements(document_id,page_number)')
+    db.execute("CREATE TABLE IF NOT EXISTS processing_warnings (document_id TEXT NOT NULL REFERENCES documents(id) "
+        "ON DELETE CASCADE, page_number INTEGER NOT NULL, code TEXT NOT NULL, detail_json TEXT NOT NULL, "
+        "PRIMARY KEY(document_id,page_number,code))")
+    db.execute('PRAGMA user_version = 3')
     db.commit()
 
 

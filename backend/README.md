@@ -87,9 +87,9 @@ both get 404 for GET and DELETE. A repeated DELETE after completed removal also 
 404; Flutter treats an already absent item as removed. Concurrent owned deletions
 that both observed the document may both finish with 204.
 
-Registration, email reset delivery, token refresh/revocation, conversation/chat APIs,
-model selection, semantic vector indexing, and subscription purchasing are outside
-this backend. Docling PDF ingestion is implemented. The existing Flutter screens for those APIs remain intact. Future
+Registration, email reset delivery, token refresh/revocation, generated-answer chat
+APIs, chat model selection, and subscription purchasing remain separate work.
+Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Future
 model access must select configured Gemma/Kimi on the server using the database tier.
 
 ## Storage and deletion design
@@ -168,6 +168,10 @@ subprocess parsing with preserved original page numbers. No real user documents 
 
 ## Validated uploads and durable ingestion
 
+See [processing and retrieval guide](PIPELINE.md) for the current structure-aware
+chunker, OCR controls, persistent vectors, provider interfaces and local demo.
+
+
 Uploads use a raw binary body rather than multipart form buffering. Send
 `Content-Type: application/pdf`, `X-Filename: <URI-encoded PDF filename>`, and a
 UUID `Idempotency-Key`. Flask copies at most 64 KiB at a time into a private,
@@ -192,7 +196,7 @@ without re-sending bytes. Concurrent submissions serialize the final key check.
 Receipts are removed with document deletion. Interrupted byte transfers must restart;
 only ingestion checkpoints, not partial upload byte ranges, are resumable.
 
-The schema migrates additively to version 2, preserving existing records. Jobs store
+The schema migrates additively to version 3, preserving existing records. Jobs store
 status, stage, next page, attempt count, safe error code, retryability, lease owner,
 lease expiry, and update timestamp. `document_pages` records completed page numbers.
 Each worker claims a queued job or an expired running lease under a write lock and
@@ -208,31 +212,26 @@ is retained. The source is opened as a seekable disk stream. One exceptionally
 complex page can still affect peak memory; byte, text/output, and batch-timeout
 limits are enforced, while operating-system process memory limits are deployment configuration.
 
-Docling provenance is offset back to the original 1-based page number. Text is
-split into at most 2,000-character chunks while preserving page number and element
-type, including table labels when the standard pipeline is enabled. One checkpoint
-transaction replaces the current batch's chunks, upserts completed pages, updates
-processed count, and advances `next_page`. IDs are deterministic per document/page/
-position; replay does not duplicate chunks. A failed batch rolls back all its data
-and progress, leaving earlier batches intact. A stale or cancelled lease cannot
-commit. Blank pages are still recorded as completed; a wholly unreadable/image-only
-PDF fails with `no_readable_content`, rather than entering chat with no evidence.
+Docling provenance is offset to original 1-based pages. Raw text, tables, headings,
+figure references, source geometry and page-quality warnings are retained separately
+from retrieval chunks. Headings travel with relevant text; table fragments retain
+whole rows and repeat available headers. LangChain embeddings are generated before
+the checkpoint publishes canonical chunks and persistent vectors atomically.
 
-`DOCLING_PIPELINE=native` is the model-free default: it reads embedded text and
-picture metadata without rendering images, but performs no OCR, layout analysis,
-reading-order reconstruction, or table recognition. This default is verified with a
-real Docling subprocess test and requires no model downloads. Set
-`DOCLING_PIPELINE=standard` for layout/table models, and `DOCLING_OCR=true` for OCR.
-Provision the selected models and OCR runtime on the server and optionally point
-`DOCLING_ARTIFACTS_PATH` at them. Standard mode may need model downloads at startup;
-remote inference services are disabled. No pipeline, model, credentials, or Ollama
-URL is sent by/to Flutter. Native extraction does not invent table structure.
-See [Docling pipeline options](https://docling-project.github.io/docling/reference/pipeline_options/)
-and [native pipeline source](https://github.com/docling-project/docling/blob/main/docling/pipeline/native_pdf_pipeline.py).
+`DOCLING_PIPELINE=standard` is now the default for layout/table recognition. Enable
+`DOCLING_OCR=true`, select an installed OCR engine/languages, and provision its model
+artifacts for scanned pages. The explicit `native` alternative reports its lack of
+layout/table/OCR recognition. Both modes avoid retained whole-document page images.
+Figures are PDF-region references and captions with visual-understanding disabled;
+ordinary text/OCR extraction does not establish a chart's meaning.
 
-`ready` currently means extracted chunks are durably available. Semantic embeddings,
-LangChain retrieval/answer generation, and citation-linked PDF viewing remain later
-features; this worker does not pretend to have built a semantic vector index.
+`ready` now requires checkpointed pages and a compatible persistent retrieval index.
+The default store performs exact cosine search on owned-document vectors in SQLite.
+Parser, embedding and vector factories are server-configurable. Existing documents
+need explicit reindex when their parser/model/index compatibility profile changes.
+The [pipeline guide](PIPELINE.md) documents migration, factories, authenticated search,
+quality-report pagination, and a local sample command. Generated answers and a
+citation-linked PDF viewer remain separate features.
 
 Cancellation is immediate at the durable job-state level and checked by the worker
 roughly every 200 ms while a subprocess runs. Completed batches and the original

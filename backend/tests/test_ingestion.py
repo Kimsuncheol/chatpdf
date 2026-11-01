@@ -8,6 +8,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 from chatpdf.db import get_db, transaction
 from chatpdf.ingestion import claim_job, checkpoint, run_job
+from chatpdf.pipeline.services import get_services
 
 
 def pdf_bytes(pages=5):
@@ -128,7 +129,7 @@ def test_expired_lease_is_reclaimed_and_stale_worker_cannot_publish(app, client,
             db.execute('UPDATE processing_jobs SET lease_until=?', (time.time() - 1,))
         fresh = claim_job()
         assert old['lease_owner'] != fresh['lease_owner']
-        assert checkpoint(old, 1, 3, fake_batch(old, 1, 3)) is False
+        assert checkpoint(old, 1, 3, fake_batch(old, 1, 3), [], [], {}, get_services()) is False
         run_job(fresh, parser=fake_batch)
         assert get_db().execute('SELECT count(*) FROM document_pages').fetchone()[0] == 5
 
@@ -217,6 +218,6 @@ def test_schema_migration_preserves_existing_documents(app, client, headers):
         get_db().execute('PRAGMA user_version=1')
         get_db().commit()
         initialize(); initialize()
-        assert get_db().execute('PRAGMA user_version').fetchone()[0] == 2
+        assert get_db().execute('PRAGMA user_version').fetchone()[0] == 3
         assert get_db().execute('SELECT id FROM documents WHERE id=?', (doc,)).fetchone()[0] == doc
         assert get_db().execute('SELECT count(*) FROM upload_requests').fetchone()[0] == 1

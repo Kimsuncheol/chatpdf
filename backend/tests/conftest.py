@@ -13,6 +13,9 @@ from chatpdf.db import get_db, transaction
 def app(tmp_path):
     app = create_app({
         'TESTING': True,
+        'DOCLING_PIPELINE': 'native',
+        'EMBEDDING_PROVIDER': 'hash-demo',
+        'EMBEDDING_DIMENSIONS': 256,
         'DATABASE_PATH': str(tmp_path / 'db' / 'library.sqlite3'),
         'DOCUMENT_STORAGE_ROOT': str(tmp_path / 'files'),
         'JWT_SECRET_KEY': 'test-only-secret-never-use-in-production-1234',
@@ -54,8 +57,8 @@ def seed(app):
         (directory / 'index').mkdir()
         (directory / 'index' / 'vectors.bin').write_bytes(b'index data')
         with app.app_context(), transaction() as db:
-            db.execute('INSERT INTO chunks VALUES (?,?,?,?,?)', (f'chunk-{document_id}', document_id, 1, 'table', 'Evidence'))
-            db.execute('INSERT INTO embeddings VALUES (?,?)', (f'chunk-{document_id}', b'\x00\x01'))
+            db.execute('INSERT INTO chunks(id,document_id,page_number,element_type,content) VALUES (?,?,?,?,?)', (f'chunk-{document_id}', document_id, 1, 'table', 'Evidence'))
+            db.execute('INSERT INTO embeddings(chunk_id,vector) VALUES (?,?)', (f'chunk-{document_id}', b'\x00\x01'))
             db.execute('INSERT INTO conversations VALUES (?,?,?)', (f'chat-{document_id}', document_id, 'Question'))
             db.execute('INSERT INTO messages VALUES (?,?,?,?)', (f'msg-{document_id}', f'chat-{document_id}', 'assistant', 'Answer'))
             db.execute('INSERT INTO processing_jobs(id,document_id,status,next_page) VALUES (?,?,?,?)', (f'job-{document_id}', document_id, 'running', 9))

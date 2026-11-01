@@ -38,8 +38,13 @@ def job_payload(document_id):
                            (document_id,)).fetchone()
     if job is None:
         return None
-    return {key: job[key] for key in (
+    payload = {key: job[key] for key in (
         'id', 'document_id', 'status', 'stage', 'next_page', 'error_code', 'retryable', 'attempts', 'updated_at')}
+    payload['warning_count'] = get_db().execute('SELECT count(*) FROM processing_warnings WHERE document_id=?',
+                                               (document_id,)).fetchone()[0]
+    payload['low_text_pages'] = get_db().execute("SELECT count(*) FROM processing_warnings WHERE document_id=? AND code='little_or_no_text'",
+                                                (document_id,)).fetchone()[0]
+    return payload
 
 
 def receipt(document):
