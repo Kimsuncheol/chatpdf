@@ -19,6 +19,7 @@ class IngestionJob {
     'no_readable_content' =>
       'No readable text was found. Image-only PDFs need an OCR-enabled server.',
     'embedding_failed' => 'The embedding provider could not process this batch. Saved progress is preserved; retry after the server is available.',
+    'indexing_failed' => 'The document index could not be saved. Saved progress is preserved; retry after the server is available.',
     'reindex_required' => 'The parser or index configuration changed. The server needs to reindex this PDF.',
     'chunk_too_large' => 'An intact table row or heading exceeds the configured chunk limit. Adjust server settings or upload a smaller PDF.',
     'source_missing' => 'The stored PDF is missing. Upload the PDF again.',

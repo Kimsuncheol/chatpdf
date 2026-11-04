@@ -31,7 +31,7 @@ class PipelineSettings:
             'LOW_TEXT_CHARACTERS', 'VECTOR_STORE_FACTORY', 'VECTOR_STORE_REVISION',
             'VECTOR_STORE_URL', 'VECTOR_STORE_NAMESPACE')}
         digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
-        return cls(digest({'parser': parser, 'embedding': embedding, 'implementation': 1}),
+        return cls(digest({'parser': parser, 'embedding': embedding, 'implementation': 2}),
             digest(embedding), config['PARSER_FACTORY'], config['VECTOR_STORE_FACTORY'],
             config['CHUNK_SIZE'], config['CHUNK_OVERLAP'], config['MAX_CHUNK_SIZE'],
             config['EMBEDDING_BATCH_SIZE'])

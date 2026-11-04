@@ -34,3 +34,8 @@ class TransactionalVectorStore(VectorStore):
 
 class EmbeddingFactory(Protocol):
     def __call__(self, config: dict) -> Embeddings: ...
+
+
+class VectorStoreFactory(Protocol):
+    def __call__(self, config: dict, *, owner_id: str, document_id: str,
+                 embedding: Embeddings | None, profile: str | None) -> TransactionalVectorStore: ...

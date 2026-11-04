@@ -27,8 +27,24 @@ class SQLiteVectorStore(TransactionalVectorStore):
     def from_texts(cls, texts, embedding, metadatas=None, **kwargs):
         raise NotImplementedError('Publish via the ingestion checkpoint so data and progress stay atomic')
 
+    def require_owned_document(self, connection):
+        if connection.execute('SELECT 1 FROM documents WHERE id=? AND owner_id=?',
+                              (self.document_id, self.owner_id)).fetchone() is None:
+            raise ApiError(404, 'not_found', 'Document not found.')
+
     def publish(self, connection, documents, vectors):
+        self.require_owned_document(connection)
         dimensions = validate_vectors(vectors, len(documents))
+        # Validate the complete batch before writing anything. Metadata is never
+        # used as proof of ownership; canonical chunk rows determine membership.
+        for document in documents:
+            chunk = connection.execute('SELECT document_id,page_number,element_type FROM chunks WHERE id=?',
+                                       (document.id,)).fetchone()
+            if (chunk is None or chunk['document_id'] != self.document_id or
+                    document.metadata.get('document_id') != self.document_id or
+                    document.metadata.get('page_number') != chunk['page_number'] or
+                    document.metadata.get('element_type') != chunk['element_type']):
+                raise ValueError('Vector publication must match the canonical document chunk')
         existing = connection.execute('SELECT DISTINCT e.dimensions FROM embeddings e JOIN chunks c ON c.id=e.chunk_id '
             'WHERE c.document_id=? AND e.profile=?', (self.document_id, self.profile)).fetchall()
         if vectors and any(row[0] != dimensions for row in existing):
@@ -36,14 +52,17 @@ class SQLiteVectorStore(TransactionalVectorStore):
         for document, vector in zip(documents, vectors, strict=True):
             norm = math.hypot(*vector)
             vector = [value/norm for value in vector]
-            connection.execute('INSERT INTO embeddings(chunk_id,vector,profile,dimensions) VALUES (?,?,?,?)',
+            connection.execute('INSERT INTO embeddings(chunk_id,vector,profile,dimensions) VALUES (?,?,?,?) '
+                'ON CONFLICT(chunk_id) DO UPDATE SET vector=excluded.vector,profile=excluded.profile,dimensions=excluded.dimensions',
                 (document.id, struct.pack(f'<{dimensions}f', *vector), self.profile, dimensions))
 
     def count_indexed(self, connection):
+        self.require_owned_document(connection)
         return connection.execute('SELECT count(*) FROM embeddings e JOIN chunks c ON c.id=e.chunk_id '
             'WHERE c.document_id=? AND e.profile=?', (self.document_id, self.profile)).fetchone()[0]
 
     def delete_document(self, connection):
+        self.require_owned_document(connection)
         connection.execute('DELETE FROM embeddings WHERE chunk_id IN '
                            '(SELECT id FROM chunks WHERE document_id=?)', (self.document_id,))
 

@@ -265,7 +265,15 @@ def run_job(job, parser=None):
                 fail_job(job, 'embedding_failed', True)
                 return
             if vectors is None or not set_stage(job, 'saving'): return
-            if not checkpoint(job, start, end, output, documents, vectors, context, services): return
+            try:
+                if not checkpoint(job, start, end, output, documents, vectors, context, services): return
+            except IndexCompatibilityError:
+                raise
+            except Exception as error:
+                current_app.logger.error('Index publication failed for job %s: %s', job['id'], type(error).__name__)
+                save_warnings(job, output['warnings'])
+                fail_job(job, 'indexing_failed', True)
+                return
     except IndexCompatibilityError:
         fail_job(job, 'reindex_required', False)
     except ChunkLimitError:

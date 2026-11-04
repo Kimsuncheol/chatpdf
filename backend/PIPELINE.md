@@ -153,7 +153,8 @@ at a batch boundary is flagged for review. Native mode cannot provide table row
 structure, so it reports a limitation instead of assigning invented table labels.
 
 Chunk metadata includes `document_id`, `page_number`, `page_numbers`, `element_type`,
-`element_types`, source element IDs, heading context, figure references, and the
+`element_types`, `section_heading` (nearest heading, or null), `heading_path`
+(ordered title/section hierarchy), source element IDs, heading context, figure references, and the
 visual-understanding flag. Multi-page Docling items are stored per source page but
 indexed once per batch, with their supporting pages retained. This metadata is
 suitable for a later grounded answer/citation layer; no answer generation is added.
@@ -193,6 +194,13 @@ checkpoint. On restart, an expired lease resumes at the next unfinished batch.
 A document becomes ready only when every page is checkpointed and its chunks have
 matching persisted index entries.
 
+The job exposes `embedding` and `saving` stages through the existing status API.
+Embedding failures record `embedding_failed`; publication failures record
+`indexing_failed`. Both are retryable and leave `next_page` at the uncommitted batch.
+Incompatible indexes record `reindex_required` and require explicit reindexing.
+The metadata contract was updated with explicit section-heading fields; previously
+indexed documents require reindexing to acquire this metadata consistently.
+
 An opaque compatibility fingerprint covers parser/OCR/batch/chunk settings,
 embedding provider/model/revision/dimensions/endpoint, and vector adapter/revision/
 namespace. API keys are excluded. A changed profile cannot resume an old job or
@@ -207,6 +215,10 @@ memory. It is a small deployment default, **not an ANN engine or a performance c
 for a large corpus**. Deleting a document cascades raw elements, warnings, page
 checkpoints, chunks, vectors, jobs and receipts; the stored adapter also gets a
 cleanup hook. No unsafe pickle/index deserialization is used.
+The SQLite adapter checks canonical ownership for publication, counts, and cleanup,
+and validates each vector's chunk/document/page/type membership before publication.
+Repeated publication of the same canonical chunk ID updates its vector rather than
+creating another entry. This complements the worker's atomic batch replacement.
 
 ## Retrieval and quality report
 

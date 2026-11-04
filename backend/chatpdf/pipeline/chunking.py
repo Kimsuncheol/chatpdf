@@ -54,6 +54,8 @@ class StructureChunker:
                 'element_types': sorted({element['element_type'] for element in sources} |
                                         {heading.get('element_type', 'section_header') for heading in headings}),
                 'element_type': kind, 'source_element_ids': [element['id'] for element in sources],
+                'section_heading': headings[-1]['text'] if headings else None,
+                'heading_path': [heading['text'] for heading in headings],
                 'heading_context': copy.deepcopy(headings), 'visual_understanding': False,
                 'figures': [element['metadata']['figure'] | {'document_id': document_id}
                             for element in sources if 'figure' in element['metadata']],
