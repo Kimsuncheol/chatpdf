@@ -8,6 +8,7 @@ import 'core/network/api_client.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/document_repository.dart';
 import 'state/session_controller.dart';
+import 'ui/screens/configuration_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,17 +25,6 @@ void main() {
     runApp(ChatPdfApp(session: session, documents: DocumentRepository(api)));
     session.restore();
   } on FormatException catch (error) {
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(error.message),
-            ),
-          ),
-        ),
-      ),
-    );
+    runApp(ConfigurationScreen(diagnostic: error.message));
   }
 }

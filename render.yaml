@@ -1,0 +1,53 @@
+# One instance: Render persistent disks cannot be shared across services.
+# Creating this Blueprint incurs paid compute/storage charges; review first.
+services:
+  - type: web
+    name: chatpdf-api
+    runtime: docker
+    repo: https://github.com/Kimsuncheol/chatpdf
+    branch: codex/render-deployment
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 1c-2g
+    region: singapore
+    numInstances: 1
+    autoDeployTrigger: off
+    healthCheckPath: /health
+    disk:
+      name: chatpdf-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: DATABASE_PATH
+        value: /var/data/db/chatpdf.sqlite3
+      - key: DOCUMENT_STORAGE_ROOT
+        value: /var/data/documents
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ISSUER
+        value: chatpdf-api
+      - key: JWT_AUDIENCE
+        value: chatpdf-mobile
+      - key: INGESTION_BATCH_PAGES
+        value: "1"
+      - key: INGESTION_BATCH_TIMEOUT
+        value: "300"
+      - key: DOCLING_PIPELINE
+        value: standard
+      - key: DOCLING_OCR
+        value: "false"
+      - key: HF_HOME
+        value: /var/data/cache/huggingface
+      - key: EMBEDDING_PROVIDER
+        value: ollama
+      - key: EMBEDDING_MODEL
+        sync: false
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_API_KEY
+        sync: false
+      - key: GEMMA_MODEL_TAG
+        sync: false
+      - key: KIMI_MODEL_TAG
+        sync: false

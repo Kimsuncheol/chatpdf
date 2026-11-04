@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ChatPDF: development",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "preLaunchTask": "ChatPDF: check development configuration",
+      "toolArgs": ["--dart-define-from-file=${workspaceFolder}/mobile/config/development.json"]
+    },
+    {
+      "name": "ChatPDF: production",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "preLaunchTask": "ChatPDF: check production configuration",
+      "toolArgs": ["--dart-define-from-file=${workspaceFolder}/mobile/config/production.json"]
+    }
+  ]
+}

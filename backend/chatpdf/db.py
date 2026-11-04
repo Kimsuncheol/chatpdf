@@ -87,7 +87,7 @@ def initialize():
     path.chmod(0o600)
     db.execute('PRAGMA journal_mode = WAL')
     version = db.execute('PRAGMA user_version').fetchone()[0]
-    if version not in (0, 1, 2, 3):
+    if version not in (0, 1, 2, 3, 4):
         raise RuntimeError('Unsupported database schema version')
     db.executescript('BEGIN IMMEDIATE;\n' + SCHEMA)
     columns = {row['name'] for row in db.execute('PRAGMA table_info(processing_jobs)')}
@@ -119,6 +119,7 @@ def initialize():
         if statement.strip():
             db.execute(statement)
     for table, definitions in {
+        'users': {'subscription_expires_at': 'TEXT'},
         'processing_jobs': {'pipeline_fingerprint': 'TEXT', 'parser_context_json': "TEXT NOT NULL DEFAULT '{}'"},
         'documents': {'index_profile': 'TEXT', 'vector_store_factory': 'TEXT'},
         'chunks': {'metadata_json': "TEXT NOT NULL DEFAULT '{}'"},
@@ -136,7 +137,7 @@ def initialize():
     db.execute("CREATE TABLE IF NOT EXISTS processing_warnings (document_id TEXT NOT NULL REFERENCES documents(id) "
         "ON DELETE CASCADE, page_number INTEGER NOT NULL, code TEXT NOT NULL, detail_json TEXT NOT NULL, "
         "PRIMARY KEY(document_id,page_number,code))")
-    db.execute('PRAGMA user_version = 3')
+    db.execute('PRAGMA user_version = 4')
     db.commit()
 
 

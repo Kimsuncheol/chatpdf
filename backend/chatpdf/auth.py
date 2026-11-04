@@ -63,3 +63,10 @@ def login():
 @authenticated
 def me():
     return jsonify(id=g.user['id'], email=g.user['email'], subscription_tier=g.user['subscription_tier'])
+
+
+@bp.get('/entitlements')
+@authenticated
+def entitlements():
+    from .model_policy import ModelPolicy
+    return jsonify(ModelPolicy().entitlements(g.user['id']).public())

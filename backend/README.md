@@ -1,5 +1,8 @@
 # ChatPDF Flask backend
 
+For the persistent Docker deployment and API/worker process layout, see
+[Render deployment](RENDER.md).
+
 A separate Python project for the mobile document library and ingestion worker. Python 3.12+ on a
 POSIX platform with symlink-safe `shutil.rmtree` is required (tested on macOS
 with Python 3.14). There was no previous backend, storage provider, or database to
@@ -54,6 +57,7 @@ All document routes require `Authorization: Bearer <access_token>`. JSON errors 
 | --- | --- |
 | POST `/api/v1/auth/login` with `{email,password}` | `{access_token}`; 30-minute signed token |
 | GET `/api/v1/auth/me` | `{id,email,subscription_tier}` from server user record |
+| GET `/api/v1/auth/entitlements` | current server tier, subscription status/expiry, allowed chat models |
 | GET `/api/v1/documents?limit=20&q=report&cursor=…` | `{items:[document],next_cursor:string-or-null}` |
 | GET `/api/v1/documents/:id` | owned document metadata |
 | GET `/api/v1/uploads/limits` | `{max_bytes,max_pages}` |
@@ -88,9 +92,10 @@ both get 404 for GET and DELETE. A repeated DELETE after completed removal also 
 that both observed the document may both finish with 204.
 
 Registration, email reset delivery, token refresh/revocation, generated-answer chat
-APIs, chat model selection, and subscription purchasing remain separate work.
+APIs and subscription purchasing remain separate work.
 Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Future
-model access must select configured Gemma/Kimi on the server using the database tier.
+grounded-answer routes must call the [server-side chat service](OLLAMA.md), which
+selects configured Gemma/Kimi from current database entitlements.
 
 ## Storage and deletion design
 
@@ -196,7 +201,9 @@ without re-sending bytes. Concurrent submissions serialize the final key check.
 Receipts are removed with document deletion. Interrupted byte transfers must restart;
 only ingestion checkpoints, not partial upload byte ranges, are resumable.
 
-The schema migrates additively to version 3, preserving existing records. Jobs store
+The schema migrates additively to version 4, preserving existing records. Version 4
+adds the server-managed subscription expiry; legacy paid accounts need an explicit
+future expiry before chat access is granted. Jobs store
 status, stage, next page, attempt count, safe error code, retryability, lease owner,
 lease expiry, and update timestamp. `document_pages` records completed page numbers.
 Each worker claims a queued job or an expired running lease under a write lock and
