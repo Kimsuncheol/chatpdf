@@ -13,7 +13,11 @@ class StrictOllamaEmbeddings(Embeddings):
         from ollama import Client
         if not config.get('OLLAMA_BASE_URL') or not config.get('EMBEDDING_MODEL'):
             raise ValueError('Set OLLAMA_BASE_URL and EMBEDDING_MODEL on the server')
-        self.client = Client(host=config['OLLAMA_BASE_URL'], timeout=config['EMBEDDING_TIMEOUT'])
+        headers = {}
+        if config.get('OLLAMA_API_KEY'):
+            headers['Authorization'] = 'Bearer ' + config['OLLAMA_API_KEY']
+        self.client = Client(host=config['OLLAMA_BASE_URL'], timeout=config['EMBEDDING_TIMEOUT'],
+                             headers=headers, follow_redirects=False, trust_env=False)
         self.model = config['EMBEDDING_MODEL']
         self.dimensions = config['EMBEDDING_DIMENSIONS'] or None
 

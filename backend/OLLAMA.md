@@ -206,6 +206,5 @@ meet your data/network requirements; keep the app-to-Ollama boundary backend-onl
 
 Provision the embedding model separately (the example uses `nomic-embed-text:latest`)
 and verify it with a small upload/search or the pipeline demo. Chat verification
-does not verify embeddings. The current Ollama embedding adapter does not explicitly
-forward `OLLAMA_API_KEY`; protected remote embedding setups require separate
-verification or an appropriate custom embedding adapter.
+does not verify embeddings. The Ollama embedding adapter forwards `OLLAMA_API_KEY` as a bearer header;
+protected remote embedding setups still require verification on the target.

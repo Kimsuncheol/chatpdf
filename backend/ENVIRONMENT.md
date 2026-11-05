@@ -86,9 +86,8 @@ configuration when the corresponding feature is used.
   Batch size 1–256; request/task timeouts must be positive.
 - `OLLAMA_BASE_URL`: server-only root endpoint; loopback when colocated. Chat rejects
   URL credentials, query strings, fragments and redirects. `OLLAMA_API_KEY` is used
-  for chat authorization when supplied. **The current Ollama embedding adapter does
-  not explicitly attach this key**; verify embedding authentication separately when
-  using a protected remote endpoint. Prefer backend loopback/private networking.
+  for chat authorization when supplied. The Ollama embedding adapter forwards this key as a bearer header as well;
+  verify embedding authentication on the configured target. Prefer backend loopback/private networking.
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`: required by the OpenAI-compatible embedding
   provider alongside the model. This sends chunk/query text to that endpoint.
 - `GEMMA_MODEL_TAG`, `KIMI_MODEL_TAG`: distinct exact `name:tag` identifiers. Free gets
