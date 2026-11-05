@@ -252,3 +252,50 @@ Defaults in `.env.example`: 50 MiB upload limit, 10,000 pages, 30-second validat
 3 pages/batch, 180-second batch timeout, 30-second heartbeat lease. These are server
 configuration, never proof supplied by the client. Status exposes counts/checkpoint
 and safe job state to the owner, without text, filesystem paths, or parser traces.
+
+## Grounded document chat
+
+`POST /api/v1/documents/:documentId/chat` accepts only `question` (1–2000
+characters) and optional `conversation_id`. It returns `{conversation_id,message}`
+with message ID, role, content, UTC `created_at`, and `citations`. Model/tier and
+other unknown request fields are rejected. Model access is checked from current
+server account records, including when retrieval produces no evidence.
+
+Each request uses the existing document-bound LangChain retriever. Server-canonical
+chunk IDs resolve to extracted elements from that same document. Bounded history
+is provided only for interpreting references, never as factual evidence. Evidence
+and history are explicitly treated as untrusted text in the prompt. Figures/OCR
+are not treated as understanding charts. The model must return supported claims
+with exact source quotes; the server validates those quotes against stored extracted
+text and constructs page citations itself. Each citation includes `page_number`,
+`element_type`, `snippet`, `element_id` and request-local `source_id`. Invalid,
+missing or unsupported citation references yield an insufficient-evidence answer,
+not invented page numbers. Exact quotes establish source provenance; they cannot
+mathematically guarantee that every model paraphrase is entailed by its quote.
+No relevant evidence should produce an explicit insufficient-evidence answer.
+
+Complete JSON responses are used rather than streaming: both messages and their
+citations commit in one transaction only after generation succeeds. Provider or
+retrieval failures do not save a partial exchange. Ownership, document readiness,
+index profile, account access and conversation revision are rechecked before commit.
+Concurrent questions on one conversation yield `409 conversation_changed` instead
+of interleaving history. Successful POST retries create another exchange; clients
+must not automatically retry a POST after an ambiguous network failure.
+
+`GET /api/v1/conversations` lists the current user's latest 100 conversations.
+`GET /api/v1/documents/:documentId/conversations/:conversationId/messages` returns
+its latest 200 messages chronologically, including persisted citations. Both match
+Flutter's existing array response contracts. Missing/foreign conversations or
+cross-document continuation return 404. History reads remain available after a
+subscription expires, but generation requires current entitlements.
+
+Schema 5 adds ownership references, UTC timestamps, persisted citation JSON and
+conversation revision to the existing tables. Legacy ownership is backfilled from
+the document chain; unknown legacy timestamps remain empty rather than invented.
+Existing data and document-delete cascades are preserved.
+
+Errors include `invalid_question` (400), `not_ready`/`document_changed` (409),
+`retrieval_unavailable` (503), and the Ollama service's safe subscription, missing
+model and timeout errors. No private source text or provider error body is logged.
+The free Render demo still requires a reachable embedding/Ollama configuration
+before chat can generate answers; this implementation does not change hosting plans.

@@ -104,6 +104,8 @@ def create_app(test_config=None):
     app.register_blueprint(uploads.bp)
     from .pipeline.retrieval import bp as retrieval_bp
     app.register_blueprint(retrieval_bp)
+    from .chat import bp as chat_bp
+    app.register_blueprint(chat_bp)
 
     @app.get('/health')
     def health():

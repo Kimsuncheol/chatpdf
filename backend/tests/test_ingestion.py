@@ -218,6 +218,6 @@ def test_schema_migration_preserves_existing_documents(app, client, headers):
         get_db().execute('PRAGMA user_version=1')
         get_db().commit()
         initialize(); initialize()
-        assert get_db().execute('PRAGMA user_version').fetchone()[0] == 4
+        assert get_db().execute('PRAGMA user_version').fetchone()[0] == 5
         assert get_db().execute('SELECT id FROM documents WHERE id=?', (doc,)).fetchone()[0] == doc
         assert get_db().execute('SELECT count(*) FROM upload_requests').fetchone()[0] == 1
