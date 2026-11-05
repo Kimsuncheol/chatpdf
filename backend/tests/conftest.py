@@ -59,8 +59,8 @@ def seed(app):
         with app.app_context(), transaction() as db:
             db.execute('INSERT INTO chunks(id,document_id,page_number,element_type,content) VALUES (?,?,?,?,?)', (f'chunk-{document_id}', document_id, 1, 'table', 'Evidence'))
             db.execute('INSERT INTO embeddings(chunk_id,vector) VALUES (?,?)', (f'chunk-{document_id}', b'\x00\x01'))
-            db.execute('INSERT INTO conversations VALUES (?,?,?)', (f'chat-{document_id}', document_id, 'Question'))
-            db.execute('INSERT INTO messages VALUES (?,?,?,?)', (f'msg-{document_id}', f'chat-{document_id}', 'assistant', 'Answer'))
+            db.execute('INSERT INTO conversations(id,document_id,title) VALUES (?,?,?)', (f'chat-{document_id}', document_id, 'Question'))
+            db.execute('INSERT INTO messages(id,conversation_id,role,content) VALUES (?,?,?,?)', (f'msg-{document_id}', f'chat-{document_id}', 'assistant', 'Answer'))
             db.execute('INSERT INTO processing_jobs(id,document_id,status,next_page) VALUES (?,?,?,?)', (f'job-{document_id}', document_id, 'running', 9))
         return document_id
     return document

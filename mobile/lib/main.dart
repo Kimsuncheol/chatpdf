@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,11 +12,28 @@ import 'core/network/api_client.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/document_repository.dart';
 import 'state/session_controller.dart';
+import 'ui/screens/configuration_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    final config = AppConfig.fromEnvironment();
+    // Generic debug launches may omit Dart definitions. Use the explicit public
+    // development configuration only in debug/development, never in release.
+    final AppConfig config;
+    if (kDebugMode &&
+        const String.fromEnvironment('APP_ENV', defaultValue: 'development') ==
+            'development' &&
+        const String.fromEnvironment('API_BASE_URL').isEmpty) {
+      final values = jsonDecode(
+        await rootBundle.loadString('config/development.defaults.json'),
+      ) as Map<String, dynamic>;
+      config = AppConfig(
+        environment: values['APP_ENV'] as String,
+        apiBaseUrl: values['API_BASE_URL'] as String,
+      );
+    } else {
+      config = AppConfig.fromEnvironment();
+    }
     final tokens = SecureTokenStore();
     final api = ApiClient(
       config: config,
@@ -24,17 +45,6 @@ void main() {
     runApp(ChatPdfApp(session: session, documents: DocumentRepository(api)));
     session.restore();
   } on FormatException catch (error) {
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(error.message),
-            ),
-          ),
-        ),
-      ),
-    );
+    runApp(ConfigurationScreen(diagnostic: error.message));
   }
 }

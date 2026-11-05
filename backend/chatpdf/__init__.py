@@ -16,6 +16,8 @@ from .storage import DocumentStorage
 def create_app(test_config=None):
     app = Flask(__name__)
     app.config.from_mapping(
+        PREVIEW_MAX_EDGE=int(os.environ.get('PREVIEW_MAX_EDGE', 1200)),
+        PREVIEW_TIMEOUT=int(os.environ.get('PREVIEW_TIMEOUT', 20)),
         DATABASE_PATH=os.environ.get('DATABASE_PATH', 'var/chatpdf.sqlite3'),
         DOCUMENT_STORAGE_ROOT=os.environ.get('DOCUMENT_STORAGE_ROOT', 'var/documents'),
         JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', ''),
@@ -48,6 +50,12 @@ def create_app(test_config=None):
         EMBEDDING_TIMEOUT=int(os.environ.get('EMBEDDING_TIMEOUT', 90)),
         EMBEDDING_TASK_TIMEOUT=int(os.environ.get('EMBEDDING_TASK_TIMEOUT', 300)),
         OLLAMA_BASE_URL=os.environ.get('OLLAMA_BASE_URL'),
+        OLLAMA_API_KEY=os.environ.get('OLLAMA_API_KEY'),
+        GEMMA_MODEL_TAG=os.environ.get('GEMMA_MODEL_TAG', ''),
+        KIMI_MODEL_TAG=os.environ.get('KIMI_MODEL_TAG', ''),
+        OLLAMA_CHAT_TIMEOUT=int(os.environ.get('OLLAMA_CHAT_TIMEOUT', 120)),
+        OLLAMA_CHAT_MAX_TOKENS=int(os.environ.get('OLLAMA_CHAT_MAX_TOKENS', 1024)),
+        OLLAMA_CHAT_MAX_INPUT_CHARS=int(os.environ.get('OLLAMA_CHAT_MAX_INPUT_CHARS', 60000)),
         OPENAI_API_KEY=os.environ.get('OPENAI_API_KEY'),
         OPENAI_BASE_URL=os.environ.get('OPENAI_BASE_URL'),
         VECTOR_STORE_FACTORY=os.environ.get('VECTOR_STORE_FACTORY', 'chatpdf.pipeline.vectorstores:SQLiteVectorStore'),
@@ -58,6 +66,10 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
+    if not 256 <= app.config['PREVIEW_MAX_EDGE'] <= 1600 or not 1 <= app.config['PREVIEW_TIMEOUT'] <= 25:
+        raise RuntimeError('Invalid preview size or timeout')
+    from .previews import init_previews
+    init_previews(app)
     app.config['MAX_CONTENT_LENGTH'] = app.config['MAX_PDF_BYTES']
     for key in ('MAX_PDF_BYTES', 'MAX_PDF_PAGES', 'PDF_VALIDATION_TIMEOUT',
                 'INGESTION_BATCH_TIMEOUT', 'INGESTION_LEASE_SECONDS'):
@@ -77,6 +89,11 @@ def create_app(test_config=None):
         raise RuntimeError('Invalid embedding dimensions or task timeout')
     if app.config['DOCLING_OCR_ENGINE'] not in ('auto', 'tesseract', 'rapidocr', 'ocrmac'):
         raise RuntimeError('Unsupported OCR engine')
+    for key in ('OLLAMA_CHAT_TIMEOUT', 'OLLAMA_CHAT_MAX_TOKENS', 'OLLAMA_CHAT_MAX_INPUT_CHARS'):
+        if app.config[key] <= 0:
+            raise RuntimeError(f'{key} must be positive')
+    if app.config['GEMMA_MODEL_TAG'] and app.config['GEMMA_MODEL_TAG'] == app.config['KIMI_MODEL_TAG']:
+        raise RuntimeError('Gemma and Kimi must use distinct configured model tags')
     if len(app.config['JWT_SECRET_KEY'].encode()) < 32:
         raise RuntimeError('JWT_SECRET_KEY must be an environment secret of at least 32 bytes')
     database = Path(app.config['DATABASE_PATH']).resolve()
@@ -93,6 +110,14 @@ def create_app(test_config=None):
     app.register_blueprint(uploads.bp)
     from .pipeline.retrieval import bp as retrieval_bp
     app.register_blueprint(retrieval_bp)
+    from .chat import bp as chat_bp
+    app.register_blueprint(chat_bp)
+
+    @app.get('/health')
+    def health():
+        # Readiness verifies the configured persistent database without exposing it.
+        db.get_db().execute('SELECT 1 FROM users LIMIT 1').fetchone()
+        return jsonify(status='ok')
 
     @app.after_request
     def private_response(response):
@@ -142,6 +167,41 @@ def create_app(test_config=None):
         """Run the durable queue consumer separately from WSGI workers."""
         from .ingestion import run_worker
         run_worker(app, once=once)
+
+    @app.cli.command('set-subscription')
+    @click.option('--email', required=True)
+    @click.option('--tier', type=click.Choice(['free', 'paid']), required=True)
+    @click.option('--expires-at', help='Required for paid: future ISO 8601 timestamp with timezone.')
+    def set_subscription(email, tier, expires_at):
+        """Administrative account provisioning; no payment processing or public upgrade API."""
+        from datetime import datetime, timezone
+        from .model_policy import parse_expiry
+        expiry = None
+        if tier == 'paid':
+            try:
+                expiry = parse_expiry(expires_at)
+                if expiry <= datetime.now(timezone.utc): raise ValueError()
+            except (TypeError, ValueError, OverflowError):
+                raise click.ClickException('Paid access requires a future --expires-at timestamp with timezone.') from None
+        elif expires_at:
+            raise click.ClickException('Free accounts must not specify --expires-at.')
+        with db.transaction() as connection:
+            changed = connection.execute('UPDATE users SET subscription_tier=?,subscription_expires_at=? '
+                'WHERE email=? COLLATE NOCASE', (tier, expiry.isoformat() if expiry else None, email.strip())).rowcount
+            if not changed: raise click.ClickException('Account not found.')
+        click.echo('Subscription updated.')
+
+    @app.cli.command('verify-ollama-models')
+    @click.option('--generate', is_flag=True, help='Also generate a fixed nonprivate smoke prompt on both models.')
+    def verify_ollama_models(generate):
+        """Verify exact tags and chat capabilities on the configured backend host."""
+        from .ollama_chat import OllamaChatService
+        try:
+            results = OllamaChatService().verify_models(generate=generate)
+        except ApiError as error:
+            raise click.ClickException(f'{error.code}: {error.message}') from None
+        for result in results:
+            click.echo(f"{result['tier']}: {result['model']} verified" + (' with generation' if generate else ''))
 
     @app.cli.command('reindex-document')
     @click.option('--email', required=True)

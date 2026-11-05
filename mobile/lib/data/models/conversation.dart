@@ -15,13 +15,19 @@ class Conversation {
 }
 
 class Citation {
-  const Citation({required this.pageNumber, required this.elementType});
+  const Citation({
+    required this.pageNumber,
+    required this.elementType,
+    this.snippet = '',
+  });
   factory Citation.fromJson(Map<String, dynamic> json) => Citation(
     pageNumber: json['page_number'] as int,
     elementType: json['element_type'] as String,
+    snippet: json['snippet'] as String? ?? '',
   );
   final int pageNumber;
   final String elementType;
+  final String snippet;
 }
 
 class ChatMessage {

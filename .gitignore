@@ -4,3 +4,5 @@
 !.env.example
 mobile/config/*.json
 !mobile/config/*.example.json
+
+!mobile/config/development.defaults.json

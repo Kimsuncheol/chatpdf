@@ -1,0 +1,8 @@
+*
+!requirements.txt
+!Dockerfile
+!.dockerignore
+!chatpdf/
+!chatpdf/**
+**/__pycache__/
+**/*.pyc

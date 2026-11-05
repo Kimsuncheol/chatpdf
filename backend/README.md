@@ -1,5 +1,12 @@
 # ChatPDF Flask backend
 
+Start with [local deployment](LOCAL_DEPLOYMENT.md), [API reference](API.md), and
+[environment reference](ENVIRONMENT.md). The specialized pipeline/Ollama/Render
+guides expand on those instructions.
+
+For the persistent Docker deployment and API/worker process layout, see
+[Render deployment](RENDER.md).
+
 A separate Python project for the mobile document library and ingestion worker. Python 3.12+ on a
 POSIX platform with symlink-safe `shutil.rmtree` is required (tested on macOS
 with Python 3.14). There was no previous backend, storage provider, or database to
@@ -54,6 +61,7 @@ All document routes require `Authorization: Bearer <access_token>`. JSON errors 
 | --- | --- |
 | POST `/api/v1/auth/login` with `{email,password}` | `{access_token}`; 30-minute signed token |
 | GET `/api/v1/auth/me` | `{id,email,subscription_tier}` from server user record |
+| GET `/api/v1/auth/entitlements` | current server tier, subscription status/expiry, allowed chat models |
 | GET `/api/v1/documents?limit=20&q=report&cursor=…` | `{items:[document],next_cursor:string-or-null}` |
 | GET `/api/v1/documents/:id` | owned document metadata |
 | GET `/api/v1/uploads/limits` | `{max_bytes,max_pages}` |
@@ -87,10 +95,9 @@ both get 404 for GET and DELETE. A repeated DELETE after completed removal also 
 404; Flutter treats an already absent item as removed. Concurrent owned deletions
 that both observed the document may both finish with 204.
 
-Registration, email reset delivery, token refresh/revocation, generated-answer chat
-APIs, chat model selection, and subscription purchasing remain separate work.
-Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Future
-model access must select configured Gemma/Kimi on the server using the database tier.
+Email reset delivery, token refresh/revocation and subscription purchasing remain separate work. Grounded chat APIs are implemented.
+Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Grounded-answer routes call the [server-side chat service](OLLAMA.md), which
+selects configured Gemma/Kimi from current database entitlements.
 
 ## Storage and deletion design
 
@@ -196,7 +203,9 @@ without re-sending bytes. Concurrent submissions serialize the final key check.
 Receipts are removed with document deletion. Interrupted byte transfers must restart;
 only ingestion checkpoints, not partial upload byte ranges, are resumable.
 
-The schema migrates additively to version 3, preserving existing records. Jobs store
+The schema migrates additively to version 5, preserving existing records. Version 4
+adds the server-managed subscription expiry; legacy paid accounts need an explicit
+future expiry before chat access is granted. Jobs store
 status, stage, next page, attempt count, safe error code, retryability, lease owner,
 lease expiry, and update timestamp. `document_pages` records completed page numbers.
 Each worker claims a queued job or an expired running lease under a write lock and
@@ -230,8 +239,7 @@ The default store performs exact cosine search on owned-document vectors in SQLi
 Parser, embedding and vector factories are server-configurable. Existing documents
 need explicit reindex when their parser/model/index compatibility profile changes.
 The [pipeline guide](PIPELINE.md) documents migration, factories, authenticated search,
-quality-report pagination, and a local sample command. Generated answers and a
-citation-linked PDF viewer remain separate features.
+quality-report pagination, and a local sample command. Grounded chat and citation-linked page previews are implemented; see [API reference](API.md).
 
 Cancellation is immediate at the durable job-state level and checked by the worker
 roughly every 200 ms while a subprocess runs. Completed batches and the original
@@ -245,3 +253,79 @@ Defaults in `.env.example`: 50 MiB upload limit, 10,000 pages, 30-second validat
 3 pages/batch, 180-second batch timeout, 30-second heartbeat lease. These are server
 configuration, never proof supplied by the client. Status exposes counts/checkpoint
 and safe job state to the owner, without text, filesystem paths, or parser traces.
+
+## Grounded document chat
+
+`POST /api/v1/documents/:documentId/chat` accepts only `question` (1–2000
+characters) and optional `conversation_id`. It returns `{conversation_id,message}`
+with message ID, role, content, UTC `created_at`, and `citations`. Model/tier and
+other unknown request fields are rejected. Model access is checked from current
+server account records, including when retrieval produces no evidence.
+
+Each request uses the existing document-bound LangChain retriever. Server-canonical
+chunk IDs resolve to extracted elements from that same document. Bounded history
+is provided only for interpreting references, never as factual evidence. Evidence
+and history are explicitly treated as untrusted text in the prompt. Figures/OCR
+are not treated as understanding charts. The model must return supported claims
+with exact source quotes; the server validates those quotes against stored extracted
+text and constructs page citations itself. Each citation includes `page_number`,
+`element_type`, `snippet`, `element_id` and request-local `source_id`. Invalid,
+missing or unsupported citation references yield an insufficient-evidence answer,
+not invented page numbers. Exact quotes establish source provenance; they cannot
+mathematically guarantee that every model paraphrase is entailed by its quote.
+No relevant evidence should produce an explicit insufficient-evidence answer.
+
+Complete JSON responses are used rather than streaming: both messages and their
+citations commit in one transaction only after generation succeeds. Provider or
+retrieval failures do not save a partial exchange. Ownership, document readiness,
+index profile, account access and conversation revision are rechecked before commit.
+Concurrent questions on one conversation yield `409 conversation_changed` instead
+of interleaving history. Successful POST retries create another exchange; clients
+must not automatically retry a POST after an ambiguous network failure.
+
+`GET /api/v1/conversations` lists the current user's latest 100 conversations.
+`GET /api/v1/documents/:documentId/conversations/:conversationId/messages` returns
+its latest 200 messages chronologically, including persisted citations. Both match
+Flutter's existing array response contracts. Missing/foreign conversations or
+cross-document continuation return 404. History reads remain available after a
+subscription expires, but generation requires current entitlements.
+
+Schema 5 adds ownership references, UTC timestamps, persisted citation JSON and
+conversation revision to the existing tables. Legacy ownership is backfilled from
+the document chain; unknown legacy timestamps remain empty rather than invented.
+Existing data and document-delete cascades are preserved.
+
+Errors include `invalid_question` (400), `not_ready`/`document_changed` (409),
+`retrieval_unavailable` (503), and the Ollama service's safe subscription, missing
+model and timeout errors. No private source text or provider error body is logged.
+The free Render demo still requires a reachable embedding/Ollama configuration
+before chat can generate answers; this implementation does not change hosting plans.
+
+## Private page previews
+
+`GET /api/v1/documents/:documentId/pages/:pageNumber/preview` requires bearer
+authentication and document ownership. Page numbers are original 1-based PDF/Docling
+numbers; page 0, out-of-range and foreign-document requests return 404. Previewing
+an uploaded page does not require ingestion to finish. Deleting documents are blocked.
+
+The response is JSON `{page_number,mime_type:"image/png",image_base64}` for the
+existing authenticated Flutter client. No original-file URL, signed public URL,
+filesystem path or token is returned. Responses inherit `Cache-Control: no-store`.
+Ownership/deletion is checked before rendering and again before returning bytes.
+
+The existing pypdfium2 dependency renders exactly one page in an isolated subprocess.
+Only one renderer runs per API process; additional requests return 503/`preview_busy`.
+The longest edge defaults to 1200px (`PREVIEW_MAX_EDGE`, range 256-1600), output is
+capped at 2 MiB and rendering at 20 seconds (`PREVIEW_TIMEOUT`, range 1-25).
+On Linux the renderer also has 384 MiB address-space and 20-second CPU limits;
+complex pages that exceed those limits fall back rather than risking unbounded
+rendering. Native renderer overhead varies; these are safeguards, not a promise
+that every source page can render on a 512 MiB free instance. Temporary PNGs are
+removed after each request and private previews are never cached on disk long-term.
+
+Missing, corrupt or unsupported PDFs return safe `preview_unavailable` errors;
+timeouts return `preview_timeout`. The client preserves the cited page and saved
+supporting snippet on failure. It fetches images using secure token handling in the
+existing API client and renders in-memory with zoom controls. Legacy citations with
+no saved snippet display the associated answer as a labeled fallback; direct page
+links without citation context explicitly report that no snippet was saved.

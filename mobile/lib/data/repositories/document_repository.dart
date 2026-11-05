@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../../core/network/api_client.dart';
 import '../models/conversation.dart';
 import '../models/document.dart';
@@ -26,6 +29,24 @@ class DocumentRepository {
   );
 
   Future<void> delete(String id) => _api.delete('documents/${_segment(id)}');
+
+  Future<Uint8List> pagePreview(String documentId, int pageNumber) async {
+    final value = await _api.get(
+      'documents/${_segment(documentId)}/pages/$pageNumber/preview',
+    );
+    if (value is! Map<String, dynamic> ||
+        value['page_number'] != pageNumber ||
+        value['mime_type'] != 'image/png' ||
+        value['image_base64'] is! String ||
+        (value['image_base64'] as String).length > 2800000) {
+      throw const ApiException('The page preview is unavailable.');
+    }
+    try {
+      return base64Decode(value['image_base64'] as String);
+    } catch (_) {
+      throw const ApiException('The page preview could not be read.');
+    }
+  }
 
   Future<Document> get(String id) async => Document.fromJson(
     await _api.get('documents/${_segment(id)}') as Map<String, dynamic>,

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/auth/token_store.dart';
 import '../core/network/api_client.dart';
 import '../data/models/user.dart';
+import '../data/models/entitlements.dart';
 import '../data/repositories/auth_repository.dart';
 
 enum SessionStatus { restoring, signedOut, signedIn, unavailable }
@@ -24,6 +25,7 @@ class SessionController extends ChangeNotifier {
 
   SessionStatus get status => _status;
   User? get user => _user;
+  Future<AccountEntitlements> loadEntitlements() => _repository.entitlements();
   String? get error => _error;
   String? get notice => _notice;
   AuthAction? get action => _action;

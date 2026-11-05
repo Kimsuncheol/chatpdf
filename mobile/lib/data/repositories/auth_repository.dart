@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../models/user.dart';
+import '../models/entitlements.dart';
 
 class AuthRepository {
   AuthRepository(this._api);
@@ -33,7 +34,7 @@ class AuthRepository {
           'An account already uses this email. Sign in or reset your password.',
         400 || 422 =>
           create
-              ? 'The account details were rejected. Check your email and password.'
+              ? 'Enter a valid email and a password of 8–1024 characters.'
               : 'Check your email and password and try again.',
         _ => error.message,
       };
@@ -57,6 +58,17 @@ class AuthRepository {
     return User.fromJson(json);
   }
 
+  Future<AccountEntitlements> entitlements() async {
+    final json = await _api.get('auth/entitlements');
+    try {
+      return AccountEntitlements.fromJson(json as Map<String, dynamic>);
+    } catch (_) {
+      throw const ApiException(
+        'Unable to read subscription details. Please retry.',
+      );
+    }
+  }
+
   Future<void> resetPassword(String email) async {
     try {
       await _api.post('auth/reset-password', {
@@ -64,6 +76,7 @@ class AuthRepository {
       }, authenticated: false);
     } on ApiException catch (error) {
       throw ApiException(switch (error.statusCode) {
+        404 || 501 => 'Email password reset is not configured on this server. No reset instructions were sent. Contact your account administrator.',
         400 || 422 => 'Enter a valid email address and try again.',
         _ => error.message,
       }, statusCode: error.statusCode);

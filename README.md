@@ -9,10 +9,13 @@ Independent projects:
 
 The client communicates only with the configured Flask HTTPS API. SQLite and
 private document/index storage remain on the server. Run the ingestion worker
-alongside Flask as described in the backend README. Ollama/LangChain answer generation
-and subscription purchases remain separate work. Structure-aware Docling parsing,
+alongside Flask as described in the backend README. Grounded Ollama/LangChain chat and citation page previews are implemented.
+Subscription purchases remain a clearly marked placeholder. Structure-aware Docling parsing,
 configurable embeddings and persistent LangChain retrieval are implemented; see
 [the local pipeline demonstration](backend/PIPELINE.md).
 
 Both projects include environment examples without real credentials. See their
 READMEs for independent setup and the shared document API contract.
+
+For local setup, operational checks and troubleshooting, see the
+[local deployment guide](backend/LOCAL_DEPLOYMENT.md) and [API reference](backend/API.md).

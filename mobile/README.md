@@ -7,15 +7,29 @@ Requires Flutter 3.47.2 / Dart 3.13.2 or compatible newer SDKs.
 ```sh
 cd mobile
 flutter pub get
-cp config/development.example.json config/development.json
-# Edit development.json to use your Flask HTTPS API.
-flutter run --dart-define-from-file=config/development.json
+# Set your actual Flask HTTPS address; no API address is bundled by default.
+API_BASE_URL="https://<your-api-host>/api/v1/" dart run tool/launch.dart --configure
+dart run tool/launch.dart
+# Select a device if needed:
+dart run tool/launch.dart -- -d DEVICE_ID
 ```
 
-For production copy `config/production.example.json` to `config/production.json`,
-set the production Flask URL, then:
+The setup command writes an ignored `config/development.json` containing only the
+public Flask URL and environment. It validates HTTPS and rejects the known example
+addresses. The launcher checks that file before running Flutter, so missing setup is
+reported in the terminal instead of installing an unconfigured build. Alternatively,
+copy/edit `config/development.example.json` and pass it to Flutter explicitly.
+
+When opening the repository root in VS Code, choose **ChatPDF: development** in
+Run and Debug. Its launch profile passes the local configuration and checks it
+before launch. Generic `flutter run` or an unconfigured IDE Run action does not load
+the JSON file. If opening only `mobile/`, use the launcher in its terminal.
+
+For production configure and validate the production Flask URL, then build:
 
 ```sh
+API_BASE_URL="https://<your-production-api-host>/api/v1/" dart run tool/launch.dart --production --configure
+dart run tool/launch.dart --production --check
 flutter build appbundle --dart-define-from-file=config/production.json
 # Or, with your Apple signing team configured:
 flutter build ipa --dart-define-from-file=config/production.json
@@ -27,7 +41,20 @@ Alternatively pass `--dart-define=APP_ENV=development` and
 at runtime. Local JSON configuration files and .env files are ignored. Both
 supported environments require HTTPS, including local development (use a trusted
 HTTPS development proxy/tunnel). Missing/invalid configuration displays a setup
-message and never falls back to a production server. API path prefixes are preserved.
+screen and never falls back to another server. Developer instructions are available
+only in debug builds. API path prefixes are preserved.
+
+### “App setup is incomplete” / “Set API_BASE_URL” at startup
+
+This means build configuration failed **before any API call**. It does not indicate
+a password, token, PDF or Ollama error. `String.fromEnvironment` reads Dart's build
+definitions; it does not read `.env`, shell variables or JSON files automatically.
+Run the configure command above, then fully stop and relaunch with the launcher or
+the named editor profile. Hot reload/restart cannot change compiled definitions;
+an installed APK/IPA must be rebuilt and reinstalled. Never substitute an example
+URL just to dismiss this screen. The Flask HTTPS endpoint must be reachable from
+the phone, with a trusted TLS certificate; phone `localhost` refers to the phone.
+No live Flask URL is known until the deployment's actual address is supplied.
 
 Build configuration is readable from the compiled app: it must contain only the
 public Flask URL and environment name. Keep passwords, signing secrets, service
@@ -53,6 +80,7 @@ lib/
     screens/                   auth, library, upload/status, chat, history, settings
     widgets/                   shared navigation shell and async content states
 config/                        development/production examples
+tool/launch.dart               validates local configuration before launch
 android/, ios/                 separate native mobile runners
 test/                        mocked API/session tests and navigation widget tests
 ```
@@ -253,3 +281,44 @@ allowed`, inspect generated bundle attributes as described in
 A local non-synced checkout avoided this observed build-artifact issue. No app
 signing settings were changed. File selection on a physical device and live HTTPS
 hosting still need deployment/device verification.
+
+## Settings, subscription and privacy
+
+Settings loads `GET auth/entitlements` through the existing authenticated API client.
+The response is display-only: current tier, subscription status, optional UTC expiry,
+chat availability and exact allowed model tags come from the backend. Opening settings,
+returning from background, or choosing Refresh fetches current server data. Failed
+loads offer retry and label any sign-in tier snapshot as unverified; they never infer
+model access from that snapshot. Normal 401 session handling still returns to sign-in.
+
+`/settings/subscription` shows refreshed entitlement details and a clearly marked
+subscription preview with disabled purchase controls. It never submits a payment,
+changes a tier, or reports a successful purchase. A later billing integration must
+update backend account records through a trusted server integration, not Flutter.
+
+`/settings/privacy` explains server/provider processing, links to document deletion
+in the library, and explicitly marks self-service account deletion as unavailable.
+Opening it does not submit a deletion request. Existing sign-out remains independent
+of entitlement loading and removes the device session, not server documents.
+
+The backend already supplies the owner-authenticated, no-store entitlement endpoint
+via `ModelPolicy`; paid expiry and model enforcement remain server-controlled.
+
+## Citation navigation
+
+Citation chips open `/documents/:documentId/pages/:pageNumber` and request one page
+through the authenticated API client. The original 1-based citation number is never
+shifted or inferred from array positions. Saved citation snippets travel as in-memory
+navigation extras, not URL query text. The viewer supports zoom, loading and retry;
+page number and cited text remain visible when rendering fails. Legacy citations
+fall back to the answer text; deep links without saved text state that no snippet is
+available. No API tokens are put in image URLs and no private images are cached to disk.
+
+### Generic debug launches
+
+A debug/development build without `API_BASE_URL` now loads the tracked public
+`config/development.defaults.json`, pointing to the free Render demo. This prevents
+an ordinary IDE Run or `flutter run` from reinstalling an unconfigured debug build.
+Explicit Dart definitions take precedence. Release/profile or production-environment
+builds still require explicit API configuration and never use this debug fallback.
+The bundled file contains no secrets; the free demo still has temporary storage.

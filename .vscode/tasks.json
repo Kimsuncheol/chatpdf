@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ChatPDF: check development configuration",
+      "type": "process",
+      "command": "dart",
+      "args": ["run", "tool/launch.dart", "--check"],
+      "options": {"cwd": "${workspaceFolder}/mobile"},
+      "problemMatcher": []
+    },
+    {
+      "label": "ChatPDF: check production configuration",
+      "type": "process",
+      "command": "dart",
+      "args": ["run", "tool/launch.dart", "--production", "--check"],
+      "options": {"cwd": "${workspaceFolder}/mobile"},
+      "problemMatcher": []
+    }
+  ]
+}
