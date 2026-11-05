@@ -1,3 +1,4 @@
+import '../../ui/screens/page_preview_screen.dart';
 import '../../ui/screens/subscription_screen.dart';
 import '../../ui/screens/privacy_screen.dart';
 
@@ -116,6 +117,16 @@ GoRouter createRouter(
             repository: documents,
             documentId: state.pathParameters['documentId']!,
             conversationId: state.uri.queryParameters['conversationId'],
+          ),
+        ),
+        GoRoute(
+          path: '/documents/:documentId/pages/:pageNumber',
+          builder: (_, state) => PagePreviewScreen(
+            key: ValueKey(state.uri.toString()),
+            repository: documents,
+            documentId: state.pathParameters['documentId']!,
+            pageNumber: int.tryParse(state.pathParameters['pageNumber']!) ?? 0,
+            snippet: state.extra is String ? state.extra as String : '',
           ),
         ),
         GoRoute(

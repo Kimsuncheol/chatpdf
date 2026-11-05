@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/document_repository.dart';
 import '../../state/chat_controller.dart';
@@ -95,7 +96,13 @@ class _ChatScreenState extends State<ChatScreen> {
                                     spacing: 8,
                                     children: [
                                       for (final citation in message.citations)
-                                        Chip(
+                                        ActionChip(
+                                          onPressed: () => context.push(
+                                            '/documents/${Uri.encodeComponent(widget.documentId)}/pages/${citation.pageNumber}',
+                                            extra: citation.snippet.isEmpty
+                                                ? 'Supporting snippet unavailable. Answer text:\n${message.content}'
+                                                : citation.snippet,
+                                          ),
                                           label: Text(
                                             'Page ${citation.pageNumber} · ${citation.elementType}',
                                           ),

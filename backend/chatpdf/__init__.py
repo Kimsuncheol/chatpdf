@@ -16,6 +16,8 @@ from .storage import DocumentStorage
 def create_app(test_config=None):
     app = Flask(__name__)
     app.config.from_mapping(
+        PREVIEW_MAX_EDGE=int(os.environ.get('PREVIEW_MAX_EDGE', 1200)),
+        PREVIEW_TIMEOUT=int(os.environ.get('PREVIEW_TIMEOUT', 20)),
         DATABASE_PATH=os.environ.get('DATABASE_PATH', 'var/chatpdf.sqlite3'),
         DOCUMENT_STORAGE_ROOT=os.environ.get('DOCUMENT_STORAGE_ROOT', 'var/documents'),
         JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', ''),
@@ -64,6 +66,10 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
+    if not 256 <= app.config['PREVIEW_MAX_EDGE'] <= 1600 or not 1 <= app.config['PREVIEW_TIMEOUT'] <= 25:
+        raise RuntimeError('Invalid preview size or timeout')
+    from .previews import init_previews
+    init_previews(app)
     app.config['MAX_CONTENT_LENGTH'] = app.config['MAX_PDF_BYTES']
     for key in ('MAX_PDF_BYTES', 'MAX_PDF_PAGES', 'PDF_VALIDATION_TIMEOUT',
                 'INGESTION_BATCH_TIMEOUT', 'INGESTION_LEASE_SECONDS'):

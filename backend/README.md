@@ -299,3 +299,32 @@ Errors include `invalid_question` (400), `not_ready`/`document_changed` (409),
 model and timeout errors. No private source text or provider error body is logged.
 The free Render demo still requires a reachable embedding/Ollama configuration
 before chat can generate answers; this implementation does not change hosting plans.
+
+## Private page previews
+
+`GET /api/v1/documents/:documentId/pages/:pageNumber/preview` requires bearer
+authentication and document ownership. Page numbers are original 1-based PDF/Docling
+numbers; page 0, out-of-range and foreign-document requests return 404. Previewing
+an uploaded page does not require ingestion to finish. Deleting documents are blocked.
+
+The response is JSON `{page_number,mime_type:"image/png",image_base64}` for the
+existing authenticated Flutter client. No original-file URL, signed public URL,
+filesystem path or token is returned. Responses inherit `Cache-Control: no-store`.
+Ownership/deletion is checked before rendering and again before returning bytes.
+
+The existing pypdfium2 dependency renders exactly one page in an isolated subprocess.
+Only one renderer runs per API process; additional requests return 503/`preview_busy`.
+The longest edge defaults to 1200px (`PREVIEW_MAX_EDGE`, range 256-1600), output is
+capped at 2 MiB and rendering at 20 seconds (`PREVIEW_TIMEOUT`, range 1-25).
+On Linux the renderer also has 384 MiB address-space and 20-second CPU limits;
+complex pages that exceed those limits fall back rather than risking unbounded
+rendering. Native renderer overhead varies; these are safeguards, not a promise
+that every source page can render on a 512 MiB free instance. Temporary PNGs are
+removed after each request and private previews are never cached on disk long-term.
+
+Missing, corrupt or unsupported PDFs return safe `preview_unavailable` errors;
+timeouts return `preview_timeout`. The client preserves the cited page and saved
+supporting snippet on failure. It fetches images using secure token handling in the
+existing API client and renders in-memory with zoom controls. Legacy citations with
+no saved snippet display the associated answer as a labeled fallback; direct page
+links without citation context explicitly report that no snippet was saved.

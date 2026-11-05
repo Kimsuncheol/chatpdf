@@ -303,3 +303,13 @@ of entitlement loading and removes the device session, not server documents.
 
 The backend already supplies the owner-authenticated, no-store entitlement endpoint
 via `ModelPolicy`; paid expiry and model enforcement remain server-controlled.
+
+## Citation navigation
+
+Citation chips open `/documents/:documentId/pages/:pageNumber` and request one page
+through the authenticated API client. The original 1-based citation number is never
+shifted or inferred from array positions. Saved citation snippets travel as in-memory
+navigation extras, not URL query text. The viewer supports zoom, loading and retry;
+page number and cited text remain visible when rendering fails. Legacy citations
+fall back to the answer text; deep links without saved text state that no snippet is
+available. No API tokens are put in image URLs and no private images are cached to disk.
