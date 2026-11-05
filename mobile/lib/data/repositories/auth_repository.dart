@@ -76,6 +76,7 @@ class AuthRepository {
       }, authenticated: false);
     } on ApiException catch (error) {
       throw ApiException(switch (error.statusCode) {
+        404 || 501 => 'Email password reset is not configured on this server. No reset instructions were sent. Contact your account administrator.',
         400 || 422 => 'Enter a valid email address and try again.',
         _ => error.message,
       }, statusCode: error.statusCode);
