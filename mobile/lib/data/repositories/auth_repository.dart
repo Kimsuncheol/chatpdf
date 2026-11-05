@@ -10,11 +10,13 @@ class AuthRepository {
     String email,
     String password, {
     bool create = false,
+    bool rememberMe = false,
   }) async {
     try {
       final json = await _api.post(create ? 'auth/register' : 'auth/login', {
         'email': email,
         'password': password,
+        if (!create && rememberMe) 'remember_me': true,
       }, authenticated: false);
       if (json is! Map<String, dynamic> ||
           json['access_token'] is! String ||
@@ -40,6 +42,10 @@ class AuthRepository {
       };
       throw ApiException(message, statusCode: error.statusCode);
     }
+  }
+
+  Future<void> signOut() async {
+    await _api.post('auth/logout', {});
   }
 
   Future<User> currentUser() async {

@@ -64,7 +64,7 @@ PORT=10000 .venv/bin/python -m chatpdf.serve
 ```
 
 The supervisor loads `.env` without overriding existing process variables, creates
-schema/storage, and starts independent Gunicorn and durable-worker processes. Do
+schema/storage, and starts independent WSGI and durable-worker processes (Waitress on macOS; Gunicorn on Linux). Do
 not run another worker by accident when using this command. It binds `0.0.0.0`;
 restrict this backend port with host/firewall rules and expose only the HTTPS proxy.
 Gunicorn uses one process/four threads and a 180-second timeout. On child failure,

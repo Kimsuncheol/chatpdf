@@ -190,6 +190,21 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                             ],
                           ],
+                          if (widget.mode == AuthMode.signIn)
+                            CheckboxListTile(
+                              key: const ValueKey('remember-me'),
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: const Text('Remember me'),
+                              subtitle: const Text(
+                                'Keep me signed in on this device until I sign out.',
+                              ),
+                              value: session.rememberMe,
+                              onChanged: busy
+                                  ? null
+                                  : (value) =>
+                                        session.setRememberMe(value ?? false),
+                            ),
                           if (session.error != null) ...[
                             const SizedBox(height: 16),
                             AuthFeedback(message: session.error!),

@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS users (
     subscription_tier TEXT NOT NULL DEFAULT 'free' CHECK (subscription_tier IN ('free', 'paid')),
     active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
 );
+CREATE TABLE IF NOT EXISTS remembered_sessions (
+ token_hash TEXT PRIMARY KEY,
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

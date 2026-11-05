@@ -99,6 +99,21 @@ class _SettingsScreenState extends State<SettingsScreen>
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/privacy'),
           ),
+          if (session.rememberMe)
+            ListTile(
+              leading: const Icon(Icons.lock_clock_outlined),
+              title: const Text('Turn off Remember me'),
+              subtitle: const Text(
+                'Sign out and stop remembering this device.',
+              ),
+              onTap: session.busy
+                  ? null
+                  : () async {
+                      if (await session.signOut()) {
+                        await session.setRememberMe(false);
+                      }
+                    },
+            ),
           if (session.error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

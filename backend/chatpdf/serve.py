@@ -32,12 +32,16 @@ def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     try:
+        host = os.environ.get('BIND_HOST', '0.0.0.0')
+        web = ([sys.executable, '-m', 'waitress', '--listen', f'{host}:{port}',
+                '--threads', '4', '--call', 'chatpdf:create_app'] if sys.platform == 'darwin' else
+               [sys.executable, '-m', 'gunicorn', 'chatpdf:create_app()',
+                '--bind', f'{host}:{port}', '--workers', '1', '--threads', '4',
+                '--timeout', '180', '--graceful-timeout', '15',
+                '--max-requests', '500', '--max-requests-jitter', '50'])
         for command in [
             [sys.executable, '-m', 'flask', '--app', 'chatpdf:create_app', 'ingestion-worker'],
-            [sys.executable, '-m', 'gunicorn', 'chatpdf:create_app()',
-             '--bind', f'0.0.0.0:{port}', '--workers', '1', '--threads', '4',
-             '--timeout', '180', '--graceful-timeout', '15',
-             '--max-requests', '500', '--max-requests-jitter', '50'],
+            web,
         ]:
             children.append(subprocess.Popen(command, start_new_session=True))
         while not stopping:

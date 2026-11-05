@@ -140,3 +140,13 @@ Email is trimmed, validated and unique case-insensitively. Passwords must contai
 input returns 400; duplicate email returns 409. All new accounts use server defaults
 (free tier, no paid expiry). Client model/tier/active fields are rejected. No email
 verification is implemented. Apply signup/login rate limits at the deployment gateway.
+
+### Remember me
+
+`POST /auth/login` accepts optional boolean `remember_me` (default `false`).
+When true, `access_token` is an opaque persistent bearer credential with no time
+expiry. The server stores only its SHA-256 hash in `remembered_sessions` and
+checks that the account remains active on every request. Ordinary logins keep
+the existing 30-minute JWT lifetime. Clients must treat either token as opaque.
+`POST /auth/logout` with bearer authorization revokes the current remembered
+session (204); other devices' sessions remain active.

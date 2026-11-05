@@ -8,7 +8,14 @@ import '../data/repositories/auth_repository.dart';
 
 enum SessionStatus { restoring, signedOut, signedIn, unavailable }
 
-enum AuthAction { restore, signIn, createAccount, resetPassword, signOut }
+enum AuthAction {
+  restore,
+  signIn,
+  createAccount,
+  resetPassword,
+  signOut,
+  preference,
+}
 
 /// Owns session transitions and auth operations; screens only collect form data.
 class SessionController extends ChangeNotifier {
@@ -22,6 +29,23 @@ class SessionController extends ChangeNotifier {
   AuthAction? _action;
   int _operation = 0;
   bool _disposed = false;
+  bool _rememberMe = false;
+  bool get rememberMe => _rememberMe;
+
+  Future<void> setRememberMe(bool enabled) async {
+    if (busy || _disposed) return;
+    final operation = _begin(AuthAction.preference);
+    try {
+      if (_tokens case final RememberMeStore store) {
+        await store.setRememberMe(enabled);
+      }
+      _rememberMe = enabled;
+      _error = null;
+    } catch (_) {
+      _error = 'Unable to save your preference. Please try again.';
+    }
+    _finish(operation);
+  }
 
   SessionStatus get status => _status;
   User? get user => _user;
@@ -61,6 +85,9 @@ class SessionController extends ChangeNotifier {
     _user = null;
     final operation = _begin(AuthAction.restore);
     try {
+      if (_tokens case final RememberMeStore store) {
+        _rememberMe = await store.readRememberMe();
+      }
       final token = await _tokens.read();
       if (!_isCurrent(operation)) return;
       if (token == null) {
@@ -103,6 +130,7 @@ class SessionController extends ChangeNotifier {
         email.trim(),
         password,
         create: create,
+        rememberMe: !create && _rememberMe,
       );
       if (!_isCurrent(operation)) return false;
       await _tokens.write(token);
@@ -166,6 +194,10 @@ class SessionController extends ChangeNotifier {
     if (busy || _disposed) return false;
     final operation = _begin(AuthAction.signOut);
     try {
+      final token = await _tokens.read();
+      if (token != null && token.startsWith('remember_')) {
+        await _repository.signOut();
+      }
       await _tokens.clear();
       if (!_isCurrent(operation)) return false;
       _user = null;

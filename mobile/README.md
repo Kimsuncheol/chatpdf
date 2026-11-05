@@ -322,3 +322,22 @@ an ordinary IDE Run or `flutter run` from reinstalling an unconfigured debug bui
 Explicit Dart definitions take precedence. Release/profile or production-environment
 builds still require explicit API configuration and never use this debug fallback.
 The bundled file contains no secrets; the free demo still has temporary storage.
+
+### Remember me
+
+The sign-in checkbox defaults to off. When enabled, a persistent session credential
+is kept in platform secure storage and restored after app restarts; passwords are
+never saved. The choice stays enabled until unchecked or disabled through Settings
+→ Turn off Remember me (which also signs out). Signing out revokes the remembered
+session on the server and clears the device credential while preserving the checkbox
+choice. Without Remember me, the credential stays in memory for the current app
+process and retains the server's ordinary 30-minute expiry. Deploy the updated
+backend before using this feature. Existing saved credentials without an explicit
+Remember me preference are ignored, requiring a new sign-in.
+
+### App icon
+
+The launcher artwork is kept in `assets/branding/app-icon.png`. To regenerate all
+existing iPhone/iPad/App Store and Android density variants on macOS, run
+`python3 tool/generate_icons.py` from `mobile/`. This uses macOS `sips`, with no
+additional packages. Rebuild/reinstall the app to update its launcher icon.

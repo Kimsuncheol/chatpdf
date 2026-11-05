@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+import hashlib
+import secrets
 import re
 import sqlite3
 from uuid import uuid4
@@ -30,15 +32,21 @@ def authenticated(view):
         scheme, _, token = request.headers.get('Authorization', '').partition(' ')
         if scheme.lower() != 'bearer' or not token or len(token) > 8192:
             raise ApiError(401, 'unauthorized', 'Sign in to continue.')
-        try:
-            claims = jwt.decode(
-                token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'],
-                issuer=current_app.config['JWT_ISSUER'], audience=current_app.config['JWT_AUDIENCE'],
-                options={'require': ['sub', 'exp', 'iat', 'iss', 'aud']},
-            )
-        except jwt.InvalidTokenError:
-            raise ApiError(401, 'unauthorized', 'Sign in to continue.') from None
-        user = get_db().execute('SELECT * FROM users WHERE id = ? AND active = 1', (claims['sub'],)).fetchone()
+        if token.startswith('remember_'):
+            user = get_db().execute(
+                'SELECT users.* FROM users JOIN remembered_sessions ON users.id = remembered_sessions.user_id WHERE token_hash = ? AND active = 1',
+                (hashlib.sha256(token.encode()).hexdigest(),),
+            ).fetchone()
+        else:
+            try:
+                claims = jwt.decode(
+                    token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'],
+                    issuer=current_app.config['JWT_ISSUER'], audience=current_app.config['JWT_AUDIENCE'],
+                    options={'require': ['sub', 'exp', 'iat', 'iss', 'aud']},
+                )
+            except jwt.InvalidTokenError:
+                raise ApiError(401, 'unauthorized', 'Sign in to continue.') from None
+            user = get_db().execute('SELECT * FROM users WHERE id = ? AND active = 1', (claims['sub'],)).fetchone()
         if user is None:
             raise ApiError(401, 'unauthorized', 'Sign in to continue.')
         # Ownership and tier come from persistent server records, never headers or token tier claims.
@@ -75,6 +83,8 @@ def login():
     body = request.get_json(silent=True)
     if not isinstance(body, dict) or not isinstance(body.get('email'), str) or not isinstance(body.get('password'), str):
         raise ApiError(400, 'invalid_input', 'Email and password are required.')
+    if not isinstance(body.get('remember_me', False), bool):
+        raise ApiError(400, 'invalid_input', 'Remember me must be a boolean.')
     email, password = body['email'].strip(), body['password']
     if len(email) > 320 or not 1 <= len(password) <= 1024:
         raise ApiError(400, 'invalid_input', 'Invalid credentials.')
@@ -82,6 +92,12 @@ def login():
     valid = check_password_hash(user['password_hash'] if user else DUMMY_HASH, password)
     if not valid or user is None or not user['active']:
         raise ApiError(401, 'unauthorized', 'Invalid credentials.')
+    if body.get('remember_me', False):
+        token = 'remember_' + secrets.token_urlsafe(48)
+        with transaction() as db:
+            db.execute('INSERT INTO remembered_sessions(token_hash,user_id) VALUES (?,?)',
+                       (hashlib.sha256(token.encode()).hexdigest(), user['id']))
+        return jsonify(access_token=token)
     return jsonify(access_token=issue_token(user['id']))
 
 
@@ -96,3 +112,13 @@ def me():
 def entitlements():
     from .model_policy import ModelPolicy
     return jsonify(ModelPolicy().entitlements(g.user['id']).public())
+
+
+@bp.post('/logout')
+@authenticated
+def logout():
+    token = request.headers['Authorization'].partition(' ')[2]
+    with transaction() as db:
+        db.execute('DELETE FROM remembered_sessions WHERE token_hash = ?',
+                   (hashlib.sha256(token.encode()).hexdigest(),))
+    return '', 204
