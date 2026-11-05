@@ -313,3 +313,12 @@ navigation extras, not URL query text. The viewer supports zoom, loading and ret
 page number and cited text remain visible when rendering fails. Legacy citations
 fall back to the answer text; deep links without saved text state that no snippet is
 available. No API tokens are put in image URLs and no private images are cached to disk.
+
+### Generic debug launches
+
+A debug/development build without `API_BASE_URL` now loads the tracked public
+`config/development.defaults.json`, pointing to the free Render demo. This prevents
+an ordinary IDE Run or `flutter run` from reinstalling an unconfigured debug build.
+Explicit Dart definitions take precedence. Release/profile or production-environment
+builds still require explicit API configuration and never use this debug fallback.
+The bundled file contains no secrets; the free demo still has temporary storage.
