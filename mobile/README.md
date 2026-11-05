@@ -281,3 +281,25 @@ allowed`, inspect generated bundle attributes as described in
 A local non-synced checkout avoided this observed build-artifact issue. No app
 signing settings were changed. File selection on a physical device and live HTTPS
 hosting still need deployment/device verification.
+
+## Settings, subscription and privacy
+
+Settings loads `GET auth/entitlements` through the existing authenticated API client.
+The response is display-only: current tier, subscription status, optional UTC expiry,
+chat availability and exact allowed model tags come from the backend. Opening settings,
+returning from background, or choosing Refresh fetches current server data. Failed
+loads offer retry and label any sign-in tier snapshot as unverified; they never infer
+model access from that snapshot. Normal 401 session handling still returns to sign-in.
+
+`/settings/subscription` shows refreshed entitlement details and a clearly marked
+subscription preview with disabled purchase controls. It never submits a payment,
+changes a tier, or reports a successful purchase. A later billing integration must
+update backend account records through a trusted server integration, not Flutter.
+
+`/settings/privacy` explains server/provider processing, links to document deletion
+in the library, and explicitly marks self-service account deletion as unavailable.
+Opening it does not submit a deletion request. Existing sign-out remains independent
+of entitlement loading and removes the device session, not server documents.
+
+The backend already supplies the owner-authenticated, no-store entitlement endpoint
+via `ModelPolicy`; paid expiry and model enforcement remain server-controlled.

@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../models/user.dart';
+import '../models/entitlements.dart';
 
 class AuthRepository {
   AuthRepository(this._api);
@@ -55,6 +56,17 @@ class AuthRepository {
       );
     }
     return User.fromJson(json);
+  }
+
+  Future<AccountEntitlements> entitlements() async {
+    final json = await _api.get('auth/entitlements');
+    try {
+      return AccountEntitlements.fromJson(json as Map<String, dynamic>);
+    } catch (_) {
+      throw const ApiException(
+        'Unable to read subscription details. Please retry.',
+      );
+    }
   }
 
   Future<void> resetPassword(String email) async {

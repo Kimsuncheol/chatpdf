@@ -1,3 +1,6 @@
+import '../../ui/screens/subscription_screen.dart';
+import '../../ui/screens/privacy_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -121,6 +124,13 @@ GoRouter createRouter(
         ),
         GoRoute(
           path: AppRoutes.settings,
+          routes: [
+            GoRoute(
+              path: 'subscription',
+              builder: (_, _) => SubscriptionScreen(session: session),
+            ),
+            GoRoute(path: 'privacy', builder: (_, _) => const PrivacyScreen()),
+          ],
           builder: (_, _) => SettingsScreen(session: session),
         ),
       ],
