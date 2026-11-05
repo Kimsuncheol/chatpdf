@@ -22,6 +22,9 @@ COPY chatpdf ./chatpdf
 # Provision parser artifacts in the image, never with the runtime signing secret.
 RUN docling-tools models download layout tableformer --output-dir /opt/docling-models
 
+RUN python -m chatpdf.e5_local download /opt/e5-model
+
+ENV E5_MODEL_PATH=/opt/e5-model
 ENV DOCLING_ARTIFACTS_PATH=/opt/docling-models
 EXPOSE 10000
 CMD ["python", "-m", "chatpdf.serve"]

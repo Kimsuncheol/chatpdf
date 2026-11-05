@@ -38,6 +38,7 @@ existing tokens. Do not commit `.env`, `.venv`, databases, PDFs or model credent
 ```sh
 # Download only parser models used by the standard pipeline:
 .venv/bin/docling-tools models download layout tableformer --output-dir var/parser-models
+.venv/bin/python -m chatpdf.e5_local download var/e5-model
 # Set DOCLING_ARTIFACTS_PATH to that directory's absolute path in .env.
 .venv/bin/flask --app chatpdf:create_app verify-ollama-models --generate
 .venv/bin/flask --app chatpdf:create_app create-user --email reader@example.com
@@ -227,3 +228,12 @@ free Render deployment's settings differ from the prepared paid Blueprint; this
 guide does not create charges or redeploy it. Use persistent local storage for this
 workflow. See [API](API.md), [environment](ENVIRONMENT.md), [Ollama](OLLAMA.md), and
 [Render-specific notes](RENDER.md).
+
+### Local embeddings without Ollama embeddings
+
+The example configuration now uses local `multilingual-e5-small`; follow the
+[local E5 setup](ENVIRONMENT.md#local-multilingual-e5-no-embedding-api-key) before
+starting the worker. Ollama verification concerns chat only. Use the demo with
+`EMBEDDING_PROVIDER=local-e5`, `EMBEDDING_MODEL=intfloat/multilingual-e5-small`,
+and `E5_MODEL_PATH` pointing to the downloaded directory. This option has no
+embedding API charges but needs sufficient RAM; it is not verified to fit Render Free.

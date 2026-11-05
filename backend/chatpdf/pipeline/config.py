@@ -20,8 +20,13 @@ class PipelineSettings:
         provider = config['EMBEDDING_PROVIDER']
         embedding = {key: config.get(key) for key in ('EMBEDDING_PROVIDER', 'EMBEDDING_MODEL',
             'EMBEDDING_REVISION', 'EMBEDDING_DIMENSIONS')}
-        if provider == 'ollama': embedding['base_url'] = config.get('OLLAMA_BASE_URL')
+        if provider == 'local-e5':
+            from ..e5_local import REVISION
+            embedding['local_revision'] = REVISION
+            embedding['windowing'] = '510-token-mean-v1'
+        elif provider == 'ollama': embedding['base_url'] = config.get('OLLAMA_BASE_URL')
         elif provider == 'openai': embedding['base_url'] = config.get('OPENAI_BASE_URL')
+        elif provider == 'jina': embedding['base_url'] = 'https://api.jina.ai/v1/embeddings'
         elif provider == 'custom': embedding['factory'] = config.get('EMBEDDING_FACTORY')
         elif provider == 'hash-demo': embedding.pop('EMBEDDING_MODEL', None)
         parser = {key: config.get(key) for key in (

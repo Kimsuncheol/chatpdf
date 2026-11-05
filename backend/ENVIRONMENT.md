@@ -116,3 +116,60 @@ Mobile uses only `APP_ENV` (`development` or `production`) and `API_BASE_URL` (H
 Flask base including `/api/v1/`). They are public compiled Dart definitions; use
 `mobile/tool/launch.dart` and ignored `mobile/config/*.json`. No server signing
 secret, database credentials, Ollama URL/key or model policy belongs in Flutter.
+
+### Hosted Jina embeddings
+
+`EMBEDDING_PROVIDER=jina`, `EMBEDDING_MODEL=jina-embeddings-v3`, and a server-only
+`JINA_API_KEY` enable the hosted Jina adapter. The endpoint is fixed to
+`https://api.jina.ai/v1/embeddings`; secrets are excluded from index fingerprints.
+Passages use `retrieval.passage` and questions use `retrieval.query`. Requests reject
+truncation, redirects and invalid vector responses. Provider failures fail the batch
+without advancing progress; no alternate/paid provider is selected automatically.
+
+This sends extracted PDF text and search queries to Jina. Use only an account/key
+whose free quota and spending controls meet your requirements; free allowance is
+not unlimited. Do not enable payment details or automatic top-ups without approval.
+Ollama continues to handle chat under the server's Gemma/Kimi subscription rules.
+Changing embedding provider requires reindexing any previously checkpointed index.
+See [Jina's API reference](https://api.jina.ai/docs) and
+[provider limits](https://jina.ai/embeddings/).
+
+### Local multilingual E5 (no embedding API key)
+
+The example environment now selects `EMBEDDING_PROVIDER=local-e5` and
+`EMBEDDING_MODEL=intfloat/multilingual-e5-small`. Set `E5_MODEL_PATH=var/e5-model`
+(or an absolute directory). `EMBEDDING_DIMENSIONS` must be 0 or 384.
+
+```sh
+cd backend
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m chatpdf.e5_local download var/e5-model
+```
+
+The downloader fetches only the pinned quantized ONNX model and tokenizer from
+`intfloat/multilingual-e5-small` revision
+`614241f622f53c4eeff9890bdc4f31cfecc418b3`. No PDF content is sent to Hugging Face;
+only public model artifacts are downloaded. Inference runs locally in disposable
+CPU subprocesses, serializes requests across API/worker on the same host, uses
+`query:`/`passage:` prefixes, masked-equivalent mean pooling on unpadded sequences,
+and normalized 384-dimensional vectors. Long input is processed in complete
+510-token windows plus special tokens, then aggregated by token count. This is
+an application extension beyond the model's single-window inference recipe and
+is included in the index fingerprint; quality for long tables needs evaluation.
+No source text is silently truncated or replaced by lexical demo embeddings.
+
+The Dockerfile provisions these artifacts at `/opt/e5-model`. Runtime model requests
+make no hosted embedding API calls. Model files consume roughly 135 MB on disk,
+but disk size is NOT runtime RAM use. A local macOS smoke check observed about
+745 MiB peak inference-process RSS, above Render Free's 512 MiB total limit even
+before the API/worker overhead. Linux may differ; this has NOT been established
+safe for the free instance. Do not enable it there without target memory validation,
+and do not upgrade paid compute without approval. No Render settings were changed
+for this integration. Use adequate local RAM for the local deployment.
+
+After changing from another provider, explicitly reindex any partially/completely
+indexed documents. The model revision/windowing method is fingerprinted; credentials
+and filesystem location do not change vector identity. Ollama is still needed for
+Gemma/Kimi chat; local embeddings do not resolve invalid chat credentials.
+
+Model/reference: https://huggingface.co/intfloat/multilingual-e5-small

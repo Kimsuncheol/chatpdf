@@ -29,6 +29,71 @@ class StrictOllamaEmbeddings(Embeddings):
         return self.embed_documents([text])[0]
 
 
+class JinaEmbeddings(Embeddings):
+    """Hosted multilingual embeddings; document/query tasks remain consistent."""
+    def __init__(self, config):
+        if not config.get('JINA_API_KEY') or not config.get('EMBEDDING_MODEL'):
+            raise ValueError('Set JINA_API_KEY and EMBEDDING_MODEL on the server')
+        self.key = config['JINA_API_KEY']
+        self.model = config['EMBEDDING_MODEL']
+        self.timeout = config['EMBEDDING_TIMEOUT']
+        self.dimensions = config['EMBEDDING_DIMENSIONS']
+
+    def _embed(self, texts, task):
+        import httpx
+        body = {'model': self.model, 'input': texts, 'task': task,
+                'normalized': True, 'embedding_type': 'float', 'truncate': False}
+        if self.dimensions:
+            body['dimensions'] = self.dimensions
+        with httpx.Client(timeout=self.timeout, follow_redirects=False, trust_env=False) as client:
+            response = client.post('https://api.jina.ai/v1/embeddings', json=body,
+                headers={'Authorization': 'Bearer ' + self.key})
+            # Do not include private request data or provider response bodies in errors.
+            if response.status_code != 200:
+                raise ValueError('Embedding provider rejected the request')
+            rows = response.json()['data']
+        if sorted(item['index'] for item in rows) != list(range(len(texts))):
+            raise ValueError('Invalid embedding response indices')
+        vectors = [item['embedding'] for item in sorted(rows, key=lambda item: item['index'])]
+        validate_vectors(vectors, len(texts))
+        return vectors
+
+    def embed_documents(self, texts):
+        return self._embed(texts, 'retrieval.passage')
+
+    def embed_query(self, text):
+        return self._embed([text], 'retrieval.query')[0]
+
+
+class LocalE5Embeddings(Embeddings):
+    def __init__(self, config):
+        from pathlib import Path
+        from ..e5_local import MODEL, FILES
+        if config['EMBEDDING_MODEL'] != MODEL or config['EMBEDDING_DIMENSIONS'] not in (0, 384):
+            raise ValueError('Local E5 requires intfloat/multilingual-e5-small and 384 dimensions')
+        self.directory = str(Path(config['E5_MODEL_PATH']).resolve())
+        if not all((Path(self.directory)/filename).is_file() for filename in FILES):
+            raise ValueError('Download pinned local E5 artifacts before starting')
+        self.timeout = config['EMBEDDING_TIMEOUT']
+
+    def _embed(self, texts, prefix):
+        import json, subprocess, sys, tempfile
+        from pathlib import Path
+        if not texts: return []
+        with tempfile.TemporaryDirectory(prefix='chatpdf-e5-') as temporary:
+            source, target = Path(temporary)/'input.json', Path(temporary)/'output.json'
+            source.write_text(json.dumps({'texts':texts,'prefix':prefix})); source.chmod(0o600)
+            result = subprocess.run([sys.executable,'-m','chatpdf.e5_local','infer',self.directory,str(source),str(target)],
+                cwd=Path(__file__).resolve().parents[2],timeout=self.timeout,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            if result.returncode or not target.is_file(): raise ValueError('Local E5 inference failed')
+            vectors = json.loads(target.read_text())
+        validate_vectors(vectors,len(texts))
+        return vectors
+
+    def embed_documents(self,texts): return self._embed(texts,'passage: ')
+    def embed_query(self,text): return self._embed([text],'query: ')[0]
+
+
 class DemoHashEmbeddings(Embeddings):
     """Offline lexical feature hashing. A demonstration aid, NOT semantic embeddings."""
     def __init__(self, dimensions=256):
@@ -49,6 +114,10 @@ class DemoHashEmbeddings(Embeddings):
 
 def build_embeddings(config):
     match config['EMBEDDING_PROVIDER']:
+        case 'local-e5':
+            return LocalE5Embeddings(config)
+        case 'jina':
+            return JinaEmbeddings(config)
         case 'ollama':
             return StrictOllamaEmbeddings(config)
         case 'openai':
