@@ -34,12 +34,20 @@ class ApiClient {
     String path,
     Map<String, dynamic> body, {
     bool authenticated = true,
-  }) => _request('POST', path, body: body, authenticated: authenticated);
+    Duration timeout = const Duration(seconds: 30),
+  }) => _request(
+    'POST',
+    path,
+    body: body,
+    authenticated: authenticated,
+    timeout: timeout,
+  );
   Future<dynamic> _request(
     String method,
     String path, {
     Map<String, dynamic>? body,
     bool authenticated = true,
+    Duration timeout = const Duration(seconds: 30),
   }) async {
     // Keep credentials on the configured API origin and base path.
     final relative = Uri.parse(path);
@@ -66,7 +74,7 @@ class ApiClient {
     try {
       response = await (() async => http.Response.fromStream(
         await _client.send(request),
-      ))().timeout(const Duration(seconds: 30));
+      ))().timeout(timeout);
     } on TimeoutException {
       throw const ApiException('The server took too long. Please try again.');
     } on http.ClientException {
@@ -143,6 +151,8 @@ class ApiClient {
       final value = json is Map<String, dynamic> ? json['error'] : null;
       final code = value is Map<String, dynamic> ? value['code'] : null;
       final message = switch (code) {
+        'model_response_invalid' => 'The AI could not produce a verified answer. Please retry or ask a more specific question.',
+        'model_timeout' => 'The AI took too long to respond. Please retry.',
         'unsupported_pdf' =>
           'Choose a PDF file (.pdf). Other file types are not supported.',
         'corrupt_pdf' => 'This PDF is corrupt or cannot be read. Export a new copy and try again.',

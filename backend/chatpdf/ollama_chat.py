@@ -52,7 +52,7 @@ class OllamaChatService:
             # Never include provider bodies, request URLs, prompts or tracebacks.
             raise ApiError(503, 'model_response_invalid', 'The chat model returned an unusable response. Retry or contact support.') from None
 
-    def chat(self, user_id, messages):
+    def chat(self, user_id, messages, *, response_format='json'):
         """No model/tier/options argument. The caller supplies server-built RAG messages.
 
         The caller must authorize the selected document and build cited PDF context.
@@ -66,7 +66,7 @@ class OllamaChatService:
             raise ApiError(400, 'invalid_messages', 'Supply text chat messages with valid roles.')
         if sum(len(item['content']) for item in messages) > current_app.config['OLLAMA_CHAT_MAX_INPUT_CHARS']:
             raise ApiError(400, 'chat_input_too_large', 'The chat context is too large. Use a shorter question or less context.')
-        response = self._call(lambda client: client.chat(model=model, messages=messages, stream=False, format='json',
+        response = self._call(lambda client: client.chat(model=model, messages=messages, stream=False, format=response_format,
             options={'temperature': 0, 'num_predict': current_app.config['OLLAMA_CHAT_MAX_TOKENS']}))
         # Recheck expiry, disablement and plan changes before releasing an answer.
         if self.policy.select(user_id) != model:

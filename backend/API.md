@@ -150,3 +150,23 @@ checks that the account remains active on every request. Ordinary logins keep
 the existing 30-minute JWT lifetime. Clients must treat either token as opaque.
 `POST /auth/logout` with bearer authorization revokes the current remembered
 session (204); other devices' sessions remain active.
+
+### Overview evidence and verification errors
+
+Broad summary/main-point requests in English or Korean use canonical prose sampled
+across the owned, ready document rather than four nearest-neighbour chunks. The
+context is limited to 9,000 characters across at most 24 evenly distributed text
+pages, including the beginning and end. Pictures, captions, and headings do not
+consume prose slots. An overview is explicitly labelled **Key passages from this
+PDF** (or its Korean equivalent): the model selects passage IDs with a constrained
+JSON schema; the server supplies their exact original text and page citations.
+These are extractive highlights in the PDF's language, not a generated translation
+or an exhaustive summary of every page.
+
+Focused questions retrieve additional candidates before discarding non-prose
+results. Generated claims are independently checked against canonical source
+quotes. Invalid claims are withheld; if none verify, the request returns HTTP 503
+with `model_response_invalid` and does not persist a false “insufficient evidence”
+answer. A genuine model insufficiency result or an empty evidence set keeps the
+existing insufficient-evidence response. Chat requests in the mobile app allow
+three minutes for local inference; ordinary API requests retain 30 seconds.

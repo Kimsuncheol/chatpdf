@@ -117,7 +117,7 @@ class DocumentRepository {
     final json = await _api.post('documents/${_segment(documentId)}/chat', {
       'question': question,
       'conversation_id': ?conversationId,
-    }) as Map<String, dynamic>;
+    }, timeout: const Duration(minutes: 3)) as Map<String, dynamic>;
     return (
       conversationId: json['conversation_id'] as String,
       message: ChatMessage.fromJson(json['message'] as Map<String, dynamic>),
