@@ -157,7 +157,7 @@ Chunk metadata includes `document_id`, `page_number`, `page_numbers`, `element_t
 (ordered title/section hierarchy), source element IDs, heading context, figure references, and the
 visual-understanding flag. Multi-page Docling items are stored per source page but
 indexed once per batch, with their supporting pages retained. This metadata is
-suitable for a later grounded answer/citation layer; no answer generation is added.
+used by the implemented grounded chat/citation layer; see [API reference](API.md).
 
 ## Persistence and interrupted jobs
 
@@ -286,5 +286,5 @@ standard parsing, Tesseract OCR, local Ollama vectors, SQLite persistence and a
 LangChain retriever. The offline variant exercises native parsing and explicit sparse/
 visual limitations. Compilation/static checks and manual authenticated API calls
 are used for this implementation. Existing fixtures now select explicit offline/native
-providers, and existing assertions follow schema version 3 and the prepared-checkpoint
+providers, and existing assertions follow the current additive schema and the prepared-checkpoint
 interface. No new test cases were added.

@@ -84,3 +84,14 @@ References: [Render disks](https://render.com/docs/disks),
 [Docker deployment](https://render.com/docs/docker),
 [compute plans](https://render.com/docs/compute-plans),
 [pricing](https://render.com/pricing).
+
+## Separate free demo
+
+The paid Blueprint above is a prepared durable deployment, not the configuration
+of the separately created free demo. That demo uses temporary `/tmp/chatpdf`
+storage, native text parsing and no configured Ollama provider. It can lose accounts,
+PDFs and indexes on restart/redeploy and is not a durable production installation.
+Do not apply this paid Blueprint or add a disk without cost approval. Local source
+changes do not automatically update the deployed demo: verify the deployed commit
+in Render before assuming newer endpoints exist there. Local deployment instructions
+are in [LOCAL_DEPLOYMENT.md](LOCAL_DEPLOYMENT.md).

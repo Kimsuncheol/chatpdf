@@ -1,5 +1,9 @@
 # ChatPDF Flask backend
 
+Start with [local deployment](LOCAL_DEPLOYMENT.md), [API reference](API.md), and
+[environment reference](ENVIRONMENT.md). The specialized pipeline/Ollama/Render
+guides expand on those instructions.
+
 For the persistent Docker deployment and API/worker process layout, see
 [Render deployment](RENDER.md).
 
@@ -91,10 +95,8 @@ both get 404 for GET and DELETE. A repeated DELETE after completed removal also 
 404; Flutter treats an already absent item as removed. Concurrent owned deletions
 that both observed the document may both finish with 204.
 
-Registration, email reset delivery, token refresh/revocation, generated-answer chat
-APIs and subscription purchasing remain separate work.
-Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Future
-grounded-answer routes must call the [server-side chat service](OLLAMA.md), which
+Registration, email reset delivery, token refresh/revocation, subscription purchasing remain separate work. Grounded chat APIs are implemented.
+Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Grounded-answer routes call the [server-side chat service](OLLAMA.md), which
 selects configured Gemma/Kimi from current database entitlements.
 
 ## Storage and deletion design
@@ -201,7 +203,7 @@ without re-sending bytes. Concurrent submissions serialize the final key check.
 Receipts are removed with document deletion. Interrupted byte transfers must restart;
 only ingestion checkpoints, not partial upload byte ranges, are resumable.
 
-The schema migrates additively to version 4, preserving existing records. Version 4
+The schema migrates additively to version 5, preserving existing records. Version 4
 adds the server-managed subscription expiry; legacy paid accounts need an explicit
 future expiry before chat access is granted. Jobs store
 status, stage, next page, attempt count, safe error code, retryability, lease owner,
@@ -237,8 +239,7 @@ The default store performs exact cosine search on owned-document vectors in SQLi
 Parser, embedding and vector factories are server-configurable. Existing documents
 need explicit reindex when their parser/model/index compatibility profile changes.
 The [pipeline guide](PIPELINE.md) documents migration, factories, authenticated search,
-quality-report pagination, and a local sample command. Generated answers and a
-citation-linked PDF viewer remain separate features.
+quality-report pagination, and a local sample command. Grounded chat and citation-linked page previews are implemented; see [API reference](API.md).
 
 Cancellation is immediate at the durable job-state level and checked by the worker
 roughly every 200 ms while a subprocess runs. Completed batches and the original

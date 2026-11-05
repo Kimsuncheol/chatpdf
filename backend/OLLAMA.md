@@ -125,7 +125,7 @@ the WSGI/gateway request deadline consistently for these nonstreaming calls.
 
 This is a low-level chat-model service, not an ungrounded public chat endpoint.
 It does not itself retrieve PDFs, claim citation grounding or save conversation
-messages. Future answer routes should allowlist their request fields and pass only
+messages. The implemented answer route allowlists its request fields and passes only
 server-built messages, never forward arbitrary client JSON to the Ollama SDK.
 
 | HTTP | Code | Action |
@@ -147,3 +147,65 @@ Ollama's own logs separately. The SDK transport avoids LangChain tracing hooks.
 Ollama references: [chat API](https://docs.ollama.com/api/chat),
 [model listing](https://docs.ollama.com/api/tags),
 [Python client](https://github.com/ollama/ollama-python).
+
+## Local installation and selecting supported model tags
+
+**Ollama must be reachable only by the backend network, never directly by Flutter.
+Do not publicly expose port 11434 or include its URL/key in mobile configuration.**
+Install from the [official distribution](https://ollama.com/download). For a manually
+started, colocated backend daemon:
+
+```sh
+OLLAMA_HOST=127.0.0.1:11434 ollama serve
+```
+
+If Ollama's desktop app/service already owns the port, use that instance instead.
+The application's `.env` does not configure an already running Ollama daemon.
+Run these commands against the same instance used by the backend:
+
+```sh
+ollama --version
+ollama list
+# Example candidate, only if supported by your runtime and hardware:
+ollama pull gemma3:4b
+ollama show gemma3:4b
+```
+
+Select a Gemma size/quantization from the [official tag list](https://ollama.com/library/gemma3/tags),
+then set `GEMMA_MODEL_TAG` to its exact installed tag. The example is not a promise
+that the model fits your hardware or meets your quality requirements.
+
+For Kimi, do not guess `kimi`, `kimi:latest`, or assume a cloud tag is locally
+available. Check current official Ollama Kimi listings, the target runtime version,
+and that target's installed `/api/tags`. A library entry does not establish tag
+availability: the [Kimi K2 tags page](https://ollama.com/library/kimi-k2/tags), for
+example, may not list a usable local tag. Choose an actually supported Kimi variant,
+quantization and context for the target's RAM/VRAM. Some require much more hardware
+than a laptop or small API service. Upgrade the target runtime if required by the
+selected variant; verify on that target, not on a different local Ollama instance.
+
+After selecting a real tag, run on the Ollama host:
+
+```sh
+# Enter the actual supported name:tag at the prompt.
+read -r KIMI_TAG
+ollama pull "$KIMI_TAG"
+ollama show "$KIMI_TAG"
+ollama list
+```
+
+Save that exact tag, including its colon suffix, as `KIMI_MODEL_TAG` in the backend
+`.env`. Then run `verify-ollama-models --generate` as documented above. It checks
+both configured tags, completion capability and generation without automatic
+fallback. Aliases do not prove the underlying model family's identity.
+
+A cloud-suffixed model can require separate cloud authorization and send private
+text outside the local machine. It is not a local/offline substitute, and an app's
+paid subscription does not purchase Ollama cloud access. Select only models that
+meet your data/network requirements; keep the app-to-Ollama boundary backend-only.
+
+Provision the embedding model separately (the example uses `nomic-embed-text:latest`)
+and verify it with a small upload/search or the pipeline demo. Chat verification
+does not verify embeddings. The current Ollama embedding adapter does not explicitly
+forward `OLLAMA_API_KEY`; protected remote embedding setups require separate
+verification or an appropriate custom embedding adapter.

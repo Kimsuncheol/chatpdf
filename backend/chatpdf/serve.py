@@ -9,10 +9,13 @@ import subprocess
 import sys
 import time
 
+from dotenv import load_dotenv
+
 from . import create_app
 
 
 def main():
+    load_dotenv()  # Match Flask CLI locally; explicit process environment wins.
     os.umask(0o077)
     port = int(os.environ.get('PORT', '10000'))
     if not 1 <= port <= 65535:
