@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+import re
+import sqlite3
+from uuid import uuid4
 
 import jwt
 from flask import Blueprint, current_app, g, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .db import get_db
+from .db import get_db, transaction
 from .errors import ApiError
 
 bp = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
@@ -42,6 +45,29 @@ def authenticated(view):
         g.user = user
         return view(*args, **kwargs)
     return wrapped
+
+
+@bp.post('/register')
+def register():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or set(body) != {'email', 'password'}:
+        raise ApiError(400, 'invalid_input', 'Email and password are required; other account settings cannot be supplied.')
+    email, password = body['email'], body['password']
+    if (not isinstance(email, str) or not isinstance(password, str) or
+            len(email.strip()) > 320 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email.strip()) or
+            not 8 <= len(password) <= 1024):
+        raise ApiError(400, 'invalid_input', 'Enter a valid email and a password of 8–1024 characters.')
+    email = email.strip()
+    identifier = str(uuid4())
+    password_hash = generate_password_hash(password)
+    try:
+        with transaction() as db:
+            # Tier/active/expiry use server defaults, never client values.
+            db.execute('INSERT INTO users(id,email,password_hash) VALUES (?,?,?)',
+                       (identifier, email, password_hash))
+    except sqlite3.IntegrityError:
+        raise ApiError(409, 'account_exists', 'An account already uses this email. Sign in instead.') from None
+    return jsonify(access_token=issue_token(identifier)), 201
 
 
 @bp.post('/login')

@@ -95,7 +95,7 @@ both get 404 for GET and DELETE. A repeated DELETE after completed removal also 
 404; Flutter treats an already absent item as removed. Concurrent owned deletions
 that both observed the document may both finish with 204.
 
-Registration, email reset delivery, token refresh/revocation, subscription purchasing remain separate work. Grounded chat APIs are implemented.
+Email reset delivery, token refresh/revocation and subscription purchasing remain separate work. Grounded chat APIs are implemented.
 Structure-aware Docling ingestion and LangChain retrieval are implemented. The existing Flutter screens for those APIs remain intact. Grounded-answer routes call the [server-side chat service](OLLAMA.md), which
 selects configured Gemma/Kimi from current database entitlements.
 

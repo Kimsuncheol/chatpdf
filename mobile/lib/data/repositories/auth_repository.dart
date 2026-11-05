@@ -34,7 +34,7 @@ class AuthRepository {
           'An account already uses this email. Sign in or reset your password.',
         400 || 422 =>
           create
-              ? 'The account details were rejected. Check your email and password.'
+              ? 'Enter a valid email and a password of 8–1024 characters.'
               : 'Check your email and password and try again.',
         _ => error.message,
       };

@@ -43,8 +43,7 @@ existing tokens. Do not commit `.env`, `.venv`, databases, PDFs or model credent
 .venv/bin/flask --app chatpdf:create_app create-user --email reader@example.com
 ```
 
-Passwords are prompted privately and hashed. There is no signup/reset delivery API,
-so the app's registration/reset placeholders do not provision an account. The
+Passwords are prompted privately and hashed. Registration is available through `/api/v1/auth/register`; email reset delivery is not implemented. The
 administrative paid-plan command is documented in `OLLAMA.md`; no payment processing
 is installed. A local Gemma-only trial can use a free account before provisioning
 Kimi, but the two-model verification command requires both tags to be configured.
@@ -207,7 +206,7 @@ chat, a citation page, history and document deletion against your own test accou
 | Symptom | Check/action |
 | --- | --- |
 | App setup screen | Set real Flask HTTPS URL with the launcher; rebuild, not hot reload. |
-| Signup/reset fails | Those backend endpoints are not implemented; use admin provisioning. |
+| Signup fails | Use a valid email and 8–1024 character password; existing email returns 409. Password reset delivery is not implemented. |
 | 401 | Token expired (30 min), disabled user, wrong issuer/audience, changed signing key; sign in again. |
 | Expired paid access | Set a valid future server expiry or explicitly switch to free; no client override. |
 | `model_not_configured`/`model_missing` | Set exact tags/host and verify on that same deployment; no guessed Kimi fallback. |

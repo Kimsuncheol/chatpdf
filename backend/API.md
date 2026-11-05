@@ -21,7 +21,7 @@ access. Paid access requires a future timezone-aware server expiry; expired/miss
 expiry denies chat, without automatically downgrading the account. Entitlement
 responses describe authorization/configuration, not Ollama health.
 
-There are **no** registration, password-reset, token-refresh, revocation, billing,
+There are **no** password-reset, token-refresh, revocation, billing,
 account-deletion or public subscription-update endpoints. Flutter contains some
 placeholder screens/contracts for those features. Provision users with `create-user`
 and plans with the administrative `set-subscription` CLI; see [Ollama guide](OLLAMA.md).
@@ -130,3 +130,13 @@ and supporting text visible if previewing fails. See the resource reference for 
 `{"status":"ok"}` after a database read. It verifies database accessibility, not
 model health, disk capacity, worker progress or successful PDF ingestion. Test
 Ollama separately with `verify-ollama-models --generate`.
+
+## Self-service registration
+
+`POST /api/v1/auth/register` accepts exactly `{email,password}` without authentication.
+Email is trimmed, validated and unique case-insensitively. Passwords must contain
+8–1024 characters and are stored only as salted Werkzeug hashes. Success returns
+201 `{access_token}`; Flutter then validates the session with `/auth/me`. Invalid
+input returns 400; duplicate email returns 409. All new accounts use server defaults
+(free tier, no paid expiry). Client model/tier/active fields are rejected. No email
+verification is implemented. Apply signup/login rate limits at the deployment gateway.
