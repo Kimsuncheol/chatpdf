@@ -11,12 +11,14 @@ class ChatController extends ChangeNotifier {
   String? conversationId;
   final List<ChatMessage> messages = [];
   bool loading = false;
+  bool loadFailed = false;
   bool sending = false;
   bool _disposed = false;
   String? error;
   Future<void> load() async {
     if (conversationId == null || loading) return;
     loading = true;
+    loadFailed = false;
     error = null;
     notifyListeners();
     try {
@@ -26,7 +28,10 @@ class ChatController extends ChangeNotifier {
         messages.addAll(result);
       }
     } catch (e) {
-      if (!_disposed) error = _message(e);
+      if (!_disposed) {
+        loadFailed = true;
+        error = _message(e);
+      }
     } finally {
       if (!_disposed) {
         loading = false;
@@ -36,7 +41,11 @@ class ChatController extends ChangeNotifier {
   }
 
   Future<bool> send(String question) async {
-    if (sending || loading || question.trim().isEmpty || _disposed) {
+    if (sending ||
+        loading ||
+        loadFailed ||
+        question.trim().isEmpty ||
+        _disposed) {
       return false;
     }
     sending = true;
