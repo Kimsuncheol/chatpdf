@@ -52,7 +52,7 @@ def create_app(test_config=None):
         EMBEDDING_TASK_TIMEOUT=int(os.environ.get('EMBEDDING_TASK_TIMEOUT', 300)),
         OLLAMA_BASE_URL=os.environ.get('OLLAMA_BASE_URL'),
         OLLAMA_API_KEY=os.environ.get('OLLAMA_API_KEY'),
-        GEMMA_MODEL_TAG=os.environ.get('GEMMA_MODEL_TAG', ''),
+        LLAMA_MODEL_TAG=os.environ.get('LLAMA_MODEL_TAG', ''),
         KIMI_MODEL_TAG=os.environ.get('KIMI_MODEL_TAG', ''),
         OLLAMA_CHAT_TIMEOUT=int(os.environ.get('OLLAMA_CHAT_TIMEOUT', 120)),
         OLLAMA_CHAT_MAX_TOKENS=int(os.environ.get('OLLAMA_CHAT_MAX_TOKENS', 1024)),
@@ -94,8 +94,8 @@ def create_app(test_config=None):
     for key in ('OLLAMA_CHAT_TIMEOUT', 'OLLAMA_CHAT_MAX_TOKENS', 'OLLAMA_CHAT_MAX_INPUT_CHARS'):
         if app.config[key] <= 0:
             raise RuntimeError(f'{key} must be positive')
-    if app.config['GEMMA_MODEL_TAG'] and app.config['GEMMA_MODEL_TAG'] == app.config['KIMI_MODEL_TAG']:
-        raise RuntimeError('Gemma and Kimi must use distinct configured model tags')
+    if app.config['LLAMA_MODEL_TAG'] and app.config['LLAMA_MODEL_TAG'] == app.config['KIMI_MODEL_TAG']:
+        raise RuntimeError('Llama 3.1 and Kimi must use distinct configured model tags')
     if len(app.config['JWT_SECRET_KEY'].encode()) < 32:
         raise RuntimeError('JWT_SECRET_KEY must be an environment secret of at least 32 bytes')
     database = Path(app.config['DATABASE_PATH']).resolve()

@@ -95,7 +95,7 @@ not quietly discarded. The OpenAI-compatible provider uses `OpenAIEmbeddings`.
 Embedding calls receive text chunks and heading/caption context, not image pixels.
 Selecting a remote embedding provider sends that text and queries to its configured
 endpoint; URLs and API keys stay in the backend environment and never enter Flutter.
-The embedding model is independent of the configured Gemma/Kimi chat entitlements.
+The embedding model is independent of the configured Llama 3.1/Kimi chat entitlements.
 
 Run Flask and the durable worker separately:
 

@@ -6,7 +6,7 @@ or model names do not grant access. No plan is cached in the chat service.
 
 | Server record | Chat access |
 | --- | --- |
-| `free` | Only `GEMMA_MODEL_TAG` |
+| `free` | Only `LLAMA_MODEL_TAG` |
 | `paid`, future timezone-aware `subscription_expires_at` | Only `KIMI_MODEL_TAG` |
 | `paid`, expired/missing/invalid expiry | Denied with `subscription_expired` |
 | Disabled/missing account | Denied with `unauthorized` |
@@ -24,7 +24,7 @@ In `backend/.env`, configure these **server-only** values:
 ```dotenv
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_API_KEY=
-GEMMA_MODEL_TAG=
+LLAMA_MODEL_TAG=
 KIMI_MODEL_TAG=
 OLLAMA_CHAT_TIMEOUT=120
 OLLAMA_CHAT_MAX_TOKENS=1024
@@ -32,7 +32,7 @@ OLLAMA_CHAT_MAX_INPUT_CHARS=60000
 ```
 
 Fill both model variables with exact installed `name:tag` identifiers for your
-chosen Gemma and Kimi variants. They must differ. There is deliberately no guessed
+chosen Llama 3.1 and Kimi variants. They must differ. There is deliberately no guessed
 Kimi tag, automatic model download, model substitution or paid-to-free fallback.
 Administrators are responsible for provisioning the correct family/weights under
 each configured tag; an alias or renamed local tag does not prove a model's origin.
@@ -87,8 +87,8 @@ when the user continues using the same access token.
   "subscription_expires_at": null,
   "entitlements": {
     "chat": true,
-    "model_family": "gemma",
-    "allowed_models": ["your-configured-gemma:tag"],
+    "model_family": "llama",
+    "allowed_models": ["your-configured-llama:tag"],
     "unavailable_reason": null
   }
 }
@@ -167,12 +167,12 @@ Run these commands against the same instance used by the backend:
 ollama --version
 ollama list
 # Example candidate, only if supported by your runtime and hardware:
-ollama pull gemma3:4b
-ollama show gemma3:4b
+ollama pull llama3.1:8b
+ollama show llama3.1:8b
 ```
 
-Select a Gemma size/quantization from the [official tag list](https://ollama.com/library/gemma3/tags),
-then set `GEMMA_MODEL_TAG` to its exact installed tag. The example is not a promise
+Select a Llama 3.1 size/quantization from the [official tag list](https://ollama.com/library/llama3.1/tags),
+then set `LLAMA_MODEL_TAG` to its exact installed tag. The example is not a promise
 that the model fits your hardware or meets your quality requirements.
 
 For Kimi, do not guess `kimi`, `kimi:latest`, or assume a cloud tag is locally
@@ -208,3 +208,10 @@ Provision the embedding model separately (the example uses `nomic-embed-text:lat
 and verify it with a small upload/search or the pipeline demo. Chat verification
 does not verify embeddings. The Ollama embedding adapter forwards `OLLAMA_API_KEY` as a bearer header;
 protected remote embedding setups still require verification on the target.
+
+### Migrating the free-tier model
+
+The free-tier configuration is now `LLAMA_MODEL_TAG` (local setup:
+`llama3.1:8b`). Rename the former `GEMMA_MODEL_TAG` environment variable when
+updating an existing deployment and restart the backend. The old variable is
+not used as a fallback. Entitlements now report `model_family: "llama"`.

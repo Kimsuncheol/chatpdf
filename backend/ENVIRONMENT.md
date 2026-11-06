@@ -48,7 +48,7 @@ configuration when the corresponding feature is used.
 | `EMBEDDING_TASK_TIMEOUT` | `300` |
 | `OLLAMA_BASE_URL` | `unset` |
 | `OLLAMA_API_KEY` | `unset` |
-| `GEMMA_MODEL_TAG` | `''` |
+| `LLAMA_MODEL_TAG` | `''` |
 | `KIMI_MODEL_TAG` | `''` |
 | `OLLAMA_CHAT_TIMEOUT` | `120` |
 | `OLLAMA_CHAT_MAX_TOKENS` | `1024` |
@@ -90,8 +90,8 @@ configuration when the corresponding feature is used.
   verify embedding authentication on the configured target. Prefer backend loopback/private networking.
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`: required by the OpenAI-compatible embedding
   provider alongside the model. This sends chunk/query text to that endpoint.
-- `GEMMA_MODEL_TAG`, `KIMI_MODEL_TAG`: distinct exact `name:tag` identifiers. Free gets
-  only configured Gemma, unexpired paid only configured Kimi. Missing config fails
+- `LLAMA_MODEL_TAG`, `KIMI_MODEL_TAG`: distinct exact `name:tag` identifiers. Free gets
+  only configured Llama 3.1, unexpired paid only configured Kimi. Missing config fails
   closed; no automatic download, substitution or downgrade.
 - `OLLAMA_CHAT_TIMEOUT`, `OLLAMA_CHAT_MAX_TOKENS`, `OLLAMA_CHAT_MAX_INPUT_CHARS`:
   positive transport timeout/output/input limits. Timeout is not an absolute
@@ -129,7 +129,7 @@ without advancing progress; no alternate/paid provider is selected automatically
 This sends extracted PDF text and search queries to Jina. Use only an account/key
 whose free quota and spending controls meet your requirements; free allowance is
 not unlimited. Do not enable payment details or automatic top-ups without approval.
-Ollama continues to handle chat under the server's Gemma/Kimi subscription rules.
+Ollama continues to handle chat under the server's Llama 3.1/Kimi subscription rules.
 Changing embedding provider requires reindexing any previously checkpointed index.
 See [Jina's API reference](https://api.jina.ai/docs) and
 [provider limits](https://jina.ai/embeddings/).
@@ -170,6 +170,6 @@ for this integration. Use adequate local RAM for the local deployment.
 After changing from another provider, explicitly reindex any partially/completely
 indexed documents. The model revision/windowing method is fingerprinted; credentials
 and filesystem location do not change vector identity. Ollama is still needed for
-Gemma/Kimi chat; local embeddings do not resolve invalid chat credentials.
+Llama 3.1/Kimi chat; local embeddings do not resolve invalid chat credentials.
 
 Model/reference: https://huggingface.co/intfloat/multilingual-e5-small

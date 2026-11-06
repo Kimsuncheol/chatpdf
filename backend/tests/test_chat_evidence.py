@@ -107,7 +107,7 @@ def test_verified_answer_and_genuine_insufficiency_remain_distinct():
 
 def test_overview_endpoint_persists_cited_exchange_and_blocks_other_owner(app, client, headers, seed):
     document = seed()
-    app.config['GEMMA_MODEL_TAG'] = 'gemma3:4b'
+    app.config['LLAMA_MODEL_TAG'] = 'llama3.1:8b'
     add_elements(app, document, [(1, 'text', 'The central point is to prepare together for global threats.'), (14, 'text', 'Cooperation is essential to protect humanity and Earth.')])
     def generate(user, messages, *, response_format):
         payload = json.loads(messages[-1]['content'])
@@ -127,7 +127,7 @@ def test_overview_endpoint_persists_cited_exchange_and_blocks_other_owner(app, c
 
 def test_invalid_generation_does_not_save_a_false_insufficient_answer(app, client, headers, seed):
     document = seed()
-    app.config['GEMMA_MODEL_TAG'] = 'gemma3:4b'
+    app.config['LLAMA_MODEL_TAG'] = 'llama3.1:8b'
     add_elements(app, document, [(1, 'text', 'Substantive prose that supports a document summary.')])
     with app.app_context():
         before = get_db().execute('SELECT count(*) FROM messages').fetchone()[0]
@@ -172,7 +172,7 @@ def test_overview_displays_only_the_selected_canonical_words(app):
 
 def test_empty_extraction_keeps_real_insufficiency_without_calling_model(app, client, headers, seed):
     document = seed()
-    app.config['GEMMA_MODEL_TAG'] = 'gemma3:4b'
+    app.config['LLAMA_MODEL_TAG'] = 'llama3.1:8b'
     with patch('chatpdf.chat.OllamaChatService.chat') as model:
         response = client.post(f'/api/v1/documents/{document}/chat', headers=headers(), json={'question': 'Summarize the PDF'})
         assert response.status_code == 200
@@ -185,13 +185,13 @@ def test_chat_transport_passes_server_schema_to_ollama(app):
     from types import SimpleNamespace
     from unittest.mock import MagicMock
     from chatpdf.ollama_chat import OllamaChatService
-    app.config.update(GEMMA_MODEL_TAG='gemma3:4b', OLLAMA_BASE_URL='http://127.0.0.1:11434')
+    app.config.update(LLAMA_MODEL_TAG='llama3.1:8b', OLLAMA_BASE_URL='http://127.0.0.1:11434')
     fake = MagicMock()
     fake.__enter__.return_value = fake
-    fake.chat.return_value = SimpleNamespace(done=True, model='gemma3:4b', message=SimpleNamespace(role='assistant', content='{"passage_ids":["P1"]}'))
+    fake.chat.return_value = SimpleNamespace(done=True, model='llama3.1:8b', message=SimpleNamespace(role='assistant', content='{"passage_ids":["P1"]}'))
     schema = {'type': 'object', 'properties': {'passage_ids': {'type': 'array'}}}
     with app.app_context():
         result = OllamaChatService(client_factory=lambda **_: fake).chat('alice', [{'role': 'user', 'content': 'test'}], response_format=schema)
         assert result == '{"passage_ids":["P1"]}'
         assert fake.chat.call_args.kwargs['format'] == schema
-        assert fake.chat.call_args.kwargs['model'] == 'gemma3:4b'
+        assert fake.chat.call_args.kwargs['model'] == 'llama3.1:8b'

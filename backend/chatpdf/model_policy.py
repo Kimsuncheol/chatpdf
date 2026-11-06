@@ -17,7 +17,7 @@ def parse_expiry(value):
 
 
 def configured_model(tier):
-    key = 'GEMMA_MODEL_TAG' if tier == 'free' else 'KIMI_MODEL_TAG'
+    key = 'LLAMA_MODEL_TAG' if tier == 'free' else 'KIMI_MODEL_TAG'
     tag = current_app.config.get(key, '')
     if (not isinstance(tag, str) or not tag or len(tag) > 200 or
             ':' not in tag or not tag.rsplit(':', 1)[-1] or
@@ -49,7 +49,7 @@ class Entitlements:
         return {'tier': self.tier, 'subscription_status': self.subscription_status,
                 'subscription_expires_at': self.expires_at,
                 'entitlements': {'chat': model is not None,
-                    'model_family': ('gemma' if self.tier == 'free' else 'kimi') if model else None,
+                    'model_family': ('llama' if self.tier == 'free' else 'kimi') if model else None,
                     'allowed_models': [model] if model else [],
                     'unavailable_reason': ('subscription_expired' if self.subscription_status != 'active'
                                            else 'model_not_configured' if model is None else None)}}

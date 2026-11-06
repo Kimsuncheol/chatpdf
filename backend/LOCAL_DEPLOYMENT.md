@@ -46,7 +46,7 @@ existing tokens. Do not commit `.env`, `.venv`, databases, PDFs or model credent
 
 Passwords are prompted privately and hashed. Registration is available through `/api/v1/auth/register`; email reset delivery is not implemented. The
 administrative paid-plan command is documented in `OLLAMA.md`; no payment processing
-is installed. A local Gemma-only trial can use a free account before provisioning
+is installed. A local Llama 3.1-only trial can use a free account before provisioning
 Kimi, but the two-model verification command requires both tags to be configured.
 
 For development, run each in a separate terminal with the same `backend/` directory

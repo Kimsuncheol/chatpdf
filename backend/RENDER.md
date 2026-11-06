@@ -35,7 +35,7 @@ on redeploy. Use coordinated database/file backups and an appropriate retention 
 2. Create a Blueprint using this repository, deployment branch
    `codex/render-deployment`, and root `render.yaml`.
 3. Supply a server-reachable `OLLAMA_BASE_URL`, any required `OLLAMA_API_KEY`,
-   `EMBEDDING_MODEL`, `GEMMA_MODEL_TAG`, and `KIMI_MODEL_TAG`. A laptop's
+   `EMBEDDING_MODEL`, `LLAMA_MODEL_TAG`, and `KIMI_MODEL_TAG`. A laptop's
    `127.0.0.1:11434` is not reachable from Render. Do not expose an unauthenticated
    Ollama server publicly. Use a trusted authenticated HTTPS endpoint or a private
    reachable service. Hosting Ollama/model hardware is separate from this API plan.

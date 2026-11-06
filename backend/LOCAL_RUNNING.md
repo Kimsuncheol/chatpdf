@@ -1,7 +1,7 @@
 # Current local setup
 
 The backend's ignored `.env` selects local Ollama on `127.0.0.1:11434`,
-`bge-m3:latest` embeddings, and `gemma3:4b` free-tier chat. Single-page Docling
+`bge-m3:latest` embeddings, and `llama3.1:8b` free-tier chat. Single-page Docling
 standard parsing uses downloaded artifacts under `var/parser-models` and English
 Tesseract OCR. Kimi paid-tier chat has not been provisioned and fails closed.
 Do not substitute a different model for paid accounts.

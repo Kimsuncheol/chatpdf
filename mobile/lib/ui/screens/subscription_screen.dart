@@ -42,7 +42,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Free plan: configured Gemma model.\nPaid plan: configured Kimi model while the subscription is active.\n\nThis preview cannot purchase, renew or change your plan. No payment will be collected and no access will be granted.',
+            'Free plan: configured Llama 3.1 model.\nPaid plan: configured Kimi model while the subscription is active.\n\nThis preview cannot purchase, renew or change your plan. No payment will be collected and no access will be granted.',
           ),
           const SizedBox(height: 16),
           const FilledButton(
